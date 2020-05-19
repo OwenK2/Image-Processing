@@ -32,7 +32,7 @@ bool Image::read(const char* filename) {
 }
 
 bool Image::write(const char* filename) {
-	IMGTYPE type = getFileType(filename);
+	ImageType type = getFileType(filename);
 	printf("%s, %d, %d, %d, %zu\n", filename, w, h, channels, size);
   int success;
   switch (type) {
@@ -52,7 +52,7 @@ bool Image::write(const char* filename) {
   return success != 0;
 }
 
-IMGTYPE Image::getFileType(const char* filename) {
+ImageType Image::getFileType(const char* filename) {
 	const char* ext = strrchr(filename, '.');
 	if(ext != nullptr) {
 		if(strcmp(ext, ".png") == 0) {
@@ -70,3 +70,34 @@ IMGTYPE Image::getFileType(const char* filename) {
 	}
 	return PNG;
 }
+
+
+
+
+Image& Image::grayscale_avg() {
+  //maximum channels we will overwrite is 3 (rgb)
+  int channels_to_overwrite = channels > 3 ? 3 : channels;
+
+  //loop through data
+  for(int i = 0; i < size; i+=channels) {
+    //get sum of color values
+    int sum = 0;
+    for(int j = 0; j < channels_to_overwrite; ++j) {
+      sum += data[i+j]
+    }
+    //compute average color value and set pixels to that gray shade
+    int gray = sum/channels_to_overwrite;
+    for(int j = 0; j < channels_to_overwrite; ++j) {
+      data[i+j] = gray;
+    }
+  }
+
+  return *this;
+}
+
+Image& Image::grayscale_lum() {
+  
+}
+
+
+
