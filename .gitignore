@@ -32,5 +32,10 @@ build
 *.out
 *.app
 
+
 *.png
 *.jpg
+
+
+.DS_Store
+ImageProcessing
