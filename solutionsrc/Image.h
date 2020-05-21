@@ -1,5 +1,4 @@
-#include <stdint.h>
-#include <cstdio>
+#include "Kernel.h"
 
 enum ImageType {
 	PNG,
@@ -24,11 +23,21 @@ struct Image {
 	bool read(const char* filename);
 	bool write(const char* filename);
 
-	ImageType getFileType(const char* filename);
+	ImageType get_file_type(const char* filename);
 
+
+	Image& diffmap(Image& img);
+	Image& diffmap_scale(Image& img, uint8_t scl = 0);
 
 	Image& grayscale_avg();
 	Image& grayscale_lum();
+
+
+	Image& convolve(Kernel& ker);
+
+	
+
+	Image& gaussian_blur();
 
 
 

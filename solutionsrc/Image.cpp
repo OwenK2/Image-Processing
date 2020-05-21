@@ -32,7 +32,7 @@ bool Image::read(const char* filename) {
 }
 
 bool Image::write(const char* filename) {
-	ImageType type = getFileType(filename);
+	ImageType type = get_file_type(filename);
 	printf("%s, %d, %d, %d, %zu\n", filename, w, h, channels, size);
   int success;
   switch (type) {
@@ -52,7 +52,7 @@ bool Image::write(const char* filename) {
   return success != 0;
 }
 
-ImageType Image::getFileType(const char* filename) {
+ImageType Image::get_file_type(const char* filename) {
 	const char* ext = strrchr(filename, '.');
 	if(ext != nullptr) {
 		if(strcmp(ext, ".png") == 0) {
@@ -74,21 +74,64 @@ ImageType Image::getFileType(const char* filename) {
 
 
 
-Image& Image::grayscale_avg() {
-  //maximum channels we will overwrite is 3 (rgb)
-  int channels_to_overwrite = channels > 3 ? 3 : channels;
 
-  //loop through data
-  for(int i = 0; i < size; i+=channels) {
-    //get sum of color values
-    int sum = 0;
-    for(int j = 0; j < channels_to_overwrite; ++j) {
-      sum += data[i+j]
+Image& Image::diffmap(Image& img) {
+  if(img.channels != channels) {
+    printf("Images %p and %p do not have the same number of channels, they were not compared.", this, &img);
+  }
+  else {
+    for(int j = 0; j < h; ++j) {
+      for(int i = 0; i < w*channels; ++i) {
+        data[j*w*channels + i] = abs(data[j*w*channels + i] - img.data[j*w*channels + i]);
+      }
     }
-    //compute average color value and set pixels to that gray shade
-    int gray = sum/channels_to_overwrite;
-    for(int j = 0; j < channels_to_overwrite; ++j) {
-      data[i+j] = gray;
+  }
+
+  return *this;
+}
+Image& Image::diffmap_scale(Image& img, uint8_t scl) {
+  if(img.channels != channels) {
+    printf("Images %p and %p do not have the same number of channels, they were not compared.", this, &img);
+  }
+  else {
+    uint8_t largest = 0;
+    for(int j = 0; j < h; ++j) {
+      for(int i = 0; i < w*channels; ++i) {
+        data[j*w*channels + i] = abs(data[j*w*channels + i] - img.data[j*w*channels + i]);
+        largest = fmax(largest, data[j*w*channels + i]);
+      }
+    }
+    scl = 255/fmax(1, fmax(scl, largest));
+    for(int i = 0; i < size; ++i) {
+      data[i] *= scl;
+    }
+  }
+
+  return *this;
+}
+
+
+Image& Image::grayscale_avg() {
+  //if there are less than 3 channels, the image is already grayscale
+  if(channels < 3) {
+    printf("Image %p has less than 3 channels, it is assumed to already be grayscale.", this);
+  }
+  else {
+    //if number of channels is even, there is an alpha channel
+    int channels_to_overwrite = channels & 1 ? channels : channels-1;
+
+    //loop through data
+    for(int i = 0; i < size; i+=channels) {
+      //get sum of color values
+      int sum = 0;
+      for(int j = 0; j < channels_to_overwrite; ++j) {
+        sum += data[i+j];
+      }
+      //compute average color value and set pixels to that gray shade
+      int gray = sum/channels_to_overwrite;
+      for(int j = 0; j < channels_to_overwrite; ++j) {
+        data[i+j] = gray;
+      }
     }
   }
 
@@ -96,8 +139,74 @@ Image& Image::grayscale_avg() {
 }
 
 Image& Image::grayscale_lum() {
-  
+  //if there are less than 3 channels, the image is already grayscale
+  if(channels < 3) {
+    printf("Image %p has less than 3 channels, it is assumed to already be grayscale.", this);
+  }
+  else {
+    //if number of channels is even, there is an alpha channel
+    int channels_to_overwrite = channels & 1 ? channels : channels-1;
+
+    //loop through data
+    for(int i = 0; i < size; i+=channels) {
+      //get sum of color values
+      double sum = 0;
+      for(int j = 0; j < channels_to_overwrite; ++j) {
+        //only handle 3 channels (RGB)
+        switch(j) {
+          case 0:
+            sum += 0.2126*data[i];
+            break;
+          case 1:
+            sum += 0.7152*data[i+1];
+            break;
+          case 2:
+            sum += 0.0722*data[i+2];
+            break;
+          default:
+            break;
+        }
+      }
+      //compute average color value and set pixels to that gray shade
+      int gray = sum;
+      for(int j = 0; j < channels_to_overwrite; ++j) {
+        data[i+j] = gray;
+      }
+    }
+  }
+
+  return *this;
 }
 
 
 
+
+Image& Image::convolve(Kernel& ker) {
+  uint8_t new_data[size];
+  for(int k = 0; k < size; k+=channels) {
+    double r = 0;
+    double g = 0;
+    double b = 0;
+
+    for(int i = -ker.cy; i < ker.side-ker.cy; ++i) {
+      for(int j = -ker.cx; j < ker.side-ker.cx; ++j) {
+        if((k/(channels*w)+i < 0) || (k/(channels*w)+i > h-1)) {
+          break;
+        }
+        if(((k/channels)%w+j < 0) || ((k/channels)%w+j > w-1)) {
+          continue;
+        }
+        else {
+          r += ker(i, j)*data[k+(i*ker.side+j)];
+          g += ker(i, j)*data[k+(i*ker.side+j)+1];
+          b += ker(i, j)*data[k+(i*ker.side+j)+2];
+        }
+      }
+    }
+    new_data[k] = (uint8_t)r;
+    new_data[k+1] = (uint8_t)g;
+    new_data[k+2] = (uint8_t)b;
+  }
+  memcpy(data, new_data, size);
+  return *this;
+}
