@@ -2,7 +2,7 @@
 
 
 int main(int argc, char** argv) {
-	Image test1("test.jpg");
+	Image test1("test1.jpg");
 	Image test2("test2.jpg");
 	Image test3("test3.jpg");
 
