@@ -72,3 +72,18 @@ ImageType Image::getFileType(const char* filename) {
 	}
 	return PNG;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

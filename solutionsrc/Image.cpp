@@ -117,21 +117,9 @@ Image& Image::grayscale_avg() {
     printf("Image %p has less than 3 channels, it is assumed to already be grayscale.", this);
   }
   else {
-    //if number of channels is even, there is an alpha channel
-    int channels_to_overwrite = channels & 1 ? channels : channels-1;
-
-    //loop through data
     for(int i = 0; i < size; i+=channels) {
-      //get sum of color values
-      int sum = 0;
-      for(int j = 0; j < channels_to_overwrite; ++j) {
-        sum += data[i+j];
-      }
-      //compute average color value and set pixels to that gray shade
-      int gray = sum/channels_to_overwrite;
-      for(int j = 0; j < channels_to_overwrite; ++j) {
-        data[i+j] = gray;
-      }
+      int gray = (data[i] + data[i+1] + data[i+2])/3;
+      memset(data+i, gray, 3);
     }
   }
 
@@ -144,34 +132,9 @@ Image& Image::grayscale_lum() {
     printf("Image %p has less than 3 channels, it is assumed to already be grayscale.", this);
   }
   else {
-    //if number of channels is even, there is an alpha channel
-    int channels_to_overwrite = channels & 1 ? channels : channels-1;
-
-    //loop through data
     for(int i = 0; i < size; i+=channels) {
-      //get sum of color values
-      double sum = 0;
-      for(int j = 0; j < channels_to_overwrite; ++j) {
-        //only handle 3 channels (RGB)
-        switch(j) {
-          case 0:
-            sum += 0.2126*data[i];
-            break;
-          case 1:
-            sum += 0.7152*data[i+1];
-            break;
-          case 2:
-            sum += 0.0722*data[i+2];
-            break;
-          default:
-            break;
-        }
-      }
-      //compute average color value and set pixels to that gray shade
-      int gray = sum;
-      for(int j = 0; j < channels_to_overwrite; ++j) {
-        data[i+j] = gray;
-      }
+      int gray = 0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2];
+      memset(data+i, gray, 3);
     }
   }
 

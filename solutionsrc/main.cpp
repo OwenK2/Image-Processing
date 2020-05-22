@@ -10,10 +10,12 @@ int main(int argc, char** argv) {
 	diff.diffmap(test2);
 	diff.write("diff.png");
 
-	Image avg(test2.grayscale_avg());
+	Image avg = test1;
+	avg.grayscale_avg();
 	avg.write("gray_avg.png");
 
-	Image lum(test2.grayscale_lum());
+	Image lum = test1;
+	lum.grayscale_lum();
 	lum.write("gray_lum.png");
 
 	Image diff2 = avg;

@@ -23,3 +23,11 @@ struct Image {
 	ImageType getFileType(const char* filename);
 
 };
+
+
+
+
+
+
+
+
