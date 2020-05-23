@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <cstring>
 #include <cstdio>
+#include <algorithm>
 #include <cmath>
 
 struct Kernel {
