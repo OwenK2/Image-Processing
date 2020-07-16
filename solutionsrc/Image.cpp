@@ -10,14 +10,20 @@ Image::Image(const char* filename) {
   }
   else {
   	size = w*h*channels;
+
+    pw = (int)pow(2, ceil(log2(w)));
+    ph = (int)pow(2, ceil(log2(h)));
+    psize = pw*ph*channels;
   }
 }
-Image::Image(int w, int h, int channels) : w(w), h(h), channels(channels) {
+Image::Image(int w, int h, int channels) : w(w), h(h), channels(channels), pw((int)pow(2, ceil(log2(w)))), ph((int)pow(2, ceil(log2(h)))) {
 	size = w*h*channels;
+  psize = pw*ph*channels;
 	data = new uint8_t[size];
 }
-Image::Image(const Image& img) : Image(img.w, img.h, img.channels) {
-	memcpy(data,img.data,size);
+Image::Image(const Image& img) : w(img.w), h(img.h), channels(img.channels), size(img.size), pw(img.pw), ph(img.ph), psize(img.psize) {
+  data = new uint8_t[size];
+  memcpy(data,img.data,size);
 }
 
 Image::~Image() {

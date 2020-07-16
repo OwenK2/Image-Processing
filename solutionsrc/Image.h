@@ -9,10 +9,15 @@ enum ImageType {
 
 struct Image {
 	uint8_t* data = NULL;
-	size_t size = 0;
-	int w;
-	int h;
-	int channels;
+	
+	int w; //width
+	int h; //height
+	int channels; //channels
+	size_t size = 0; //w*h*channels
+
+	int pw; //padded width, must be 2^m for some m
+	int ph; //padded height, must be 2^n for some n
+	size_t psize = 0; //pw*ph*channels
 	
 	Image(const char* filename);
 	Image(int w, int h, int channels);

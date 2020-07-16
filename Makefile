@@ -1,7 +1,7 @@
-CC				:= g++
+CC			:= g++
 TARGET		:= "ImageProcessing"
 BUILDDIR	:= build
-SRCDIR		:= src
+SRCDIR		:= solutionsrc
 CFLAGS		:= -std=c++17 -g
 SRCEXT		:= cpp
 SOURCES 	:= $(wildcard $(SRCDIR)/*.$(SRCEXT))
