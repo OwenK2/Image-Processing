@@ -19,13 +19,13 @@ struct Image {
 	int ph; //padded height, must be 2^n for some n
 	size_t psize = 0; //pw*ph*channels
 	
-	Image(const char* filename);
+	Image(const char* filename, int channelForce = 0);
 	Image(int w, int h, int channels);
 	Image(const Image& img);
 	~Image();
 
 
-	bool read(const char* filename);
+	bool read(const char* filename, int channelForce = 0);
 	bool write(const char* filename);
 
 	ImageType get_file_type(const char* filename);
@@ -39,6 +39,8 @@ struct Image {
 
 
 	Image& convolve(Kernel& ker);
+
+	Image& medianFilter(Image* imgs, uint8_t numImages);
 
 	
 

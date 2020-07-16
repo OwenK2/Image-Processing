@@ -4,8 +4,8 @@
 #include "stb_image_write.h"
 #include "Image.h"
 
-Image::Image(const char* filename) {
-  if(!read(filename)) {
+Image::Image(const char* filename, int channelForce) {
+  if(!read(filename, channelForce)) {
     printf("Failed to read %s\n", filename);
   }
   else {
@@ -32,14 +32,15 @@ Image::~Image() {
 
 
 
-bool Image::read(const char* filename) {
-  data = stbi_load(filename, &w, &h, &channels, 0);
+bool Image::read(const char* filename, int channelForce) {
+  data = stbi_load(filename, &w, &h, &channels, channelForce);
+  channels = channelForce == 0 ? channels : channelForce;
   return data != NULL;
 }
 
 bool Image::write(const char* filename) {
 	ImageType type = get_file_type(filename);
-	printf("%s, %d, %d, %d, %zu\n", filename, w, h, channels, size);
+	printf("Wrote %s, %d, %d, %d, %zu\n", filename, w, h, channels, size);
   int success;
   switch (type) {
     case PNG:
@@ -177,5 +178,42 @@ Image& Image::convolve(Kernel& ker) {
     new_data[k+2] = (uint8_t)b;
   }
   memcpy(data, new_data, size);
+  return *this;
+}
+
+
+
+Image& Image::medianFilter(Image* imgs, uint8_t numImgs) {
+  //Error Checking
+  for(int i = 0;i < numImgs;++i) {
+    if((imgs[i].w != w || imgs[i].h != h) && !printedSizeWarning) {
+      printf("\e[31m[ERROR] Median Filter requires all images be the same size (%d x %d)\e[0m\n", w, h);
+      return *this;
+    }
+    else if(imgs[i].channels != channels) {
+      printf("\e[31m[ERROR] Median Filter requires all images to have the same number of color channels \n\tShould have \e[1m%d\e[0m\e[31m channels but found \e[1m%d\e[0m\e[31m channels\e[0m\n", channels, imgs[i].channels);
+      return *this;
+    }
+  }
+
+  //Algorithm
+  uint8_t* temp = new uint8_t[numImgs];
+  for(int i = 0;i < size;i++) {
+    int outOfRange = 0;
+    for(int j = 0;j < numImgs;++j) {
+      if(i > imgs[j].size) {
+        temp[j] = 0;
+        outOfRange ++;
+      }
+      else {
+        temp[j] = imgs[j].data[i];
+      }
+      
+    }
+    std::sort(temp, temp+numImgs);
+    data[i] = temp[(numImgs + outOfRange)/2];
+  }
+
+  delete[] temp;
   return *this;
 }
