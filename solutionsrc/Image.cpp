@@ -11,14 +11,19 @@ Image::Image(const char* filename, int channelForce) {
   }
   else {
   	size = w*h*channels;
+    pw = pow(2, ceil(log2(w)));
+    ph = pow(2, ceil(log2(h)));
+    psize = pw*ph;
   }
 }
-Image::Image(int w, int h, int channels) : w(w), h(h), channels(channels) {
+Image::Image(int w, int h, int channels) : w(w), h(h), channels(channels), pw(pow(2, ceil(log2(w)))), ph(pow(2, ceil(log2(h)))) {
 	size = w*h*channels;
+  psize = pw*ph;
 	data = new uint8_t[size];
 }
-Image::Image(const Image& img) : Image(img.w, img.h, img.channels) {
-	memcpy(data,img.data,size);
+Image::Image(const Image& img) : w(img.w), h(img.h), channels(img.channels), size(img.size), pw(img.pw), ph(img.ph), psize(img.psize) {
+  data = new uint8_t[size];
+  memcpy(data,img.data,size);
 }
 
 Image::~Image() {
@@ -75,6 +80,179 @@ ImageType Image::get_file_type(const char* filename) {
 
 
 
+//doesnt divide, you must do that
+std::complex<double>* Image::recursive_fft(uint32_t n, std::complex<double> x[], std::complex<double>* X, bool inverse) {
+  if(n == 1) {
+    X[0] = x[0];
+  }
+  else {
+    //w_n is an nth root of unity
+    std::complex<double> w[n];
+    for(uint64_t i=0; i<n; ++i) {
+      double theta = inverse ? -2*M_PI*i/n : 2*M_PI*i/n; //inverse decided here
+      w[i] = std::complex<double>(cos(theta), sin(theta));
+    }
+      
+    //decompose x into even indices and odd indices
+    std::complex<double> x_e[n/2]; //even
+    std::complex<double> x_o[n/2]; //odd
+    //get coefficents out of x
+    for(uint64_t i=0; i<n/2; ++i) {
+      x_e[i] = x[2*i];
+      x_o[i] = x[2*i+1];
+    }
+
+    //recursive call
+    std::complex<double> X_e[n/2];
+    recursive_fft(n/2, x_e, X_e, inverse);
+
+    std::complex<double> X_o[n/2];
+    recursive_fft(n/2, x_o, X_o, inverse);
+
+    //combine results: X[k] = X_e[k] + w_n^+-k X_o[k]
+    //           X[k+t/2] = X_e[k] - w_n^+-k X_o[k]
+    for(uint64_t k = 0; k < n/2; ++k) {
+      X[k] = X_e[k] + w[k]*X_o[k];
+      X[k+n/2] = X_e[k] - w[k]*X_o[k];
+    }
+  }
+  return X;
+}
+
+std::complex<double>* Image::dft(uint8_t channel, uint32_t m, uint32_t n, std::complex<double>* Y) {
+  memset(Y, 0, sizeof(std::complex<double>)*m*n);
+  for(uint32_t i=0; i<h; ++i) {
+    std::complex<double>* x = new std::complex<double>[n];
+    for(uint32_t e=0; e<w; ++e) {
+      x[e] = std::complex<double>(data[(i*w+e)*channels+channel]/255.0,0);
+    }
+    std::complex<double>* X = new std::complex<double>[n];
+    recursive_fft(n, x, X, false);
+    delete[] x;
+    for(uint32_t e=0; e<n; ++e) {
+      Y[i*n+e] = X[e];
+    }
+    delete[] X;
+  }
+  for(uint32_t j=0; j<n; ++j) {
+    std::complex<double>* x = new std::complex<double>[m];
+    for(uint32_t e=0; e<h; ++e) {
+      x[e] = Y[e*n+j];
+    }
+    std::complex<double>* X = new std::complex<double>[m];
+    recursive_fft(m, x, X, false);
+    delete[] x;
+    for(uint32_t e=0; e<m; ++e) {
+      Y[e*n+j] = X[e];
+    }
+    delete[] X;
+  }
+  return Y;
+}
+Image& Image::idft(uint8_t channel, uint32_t m, uint32_t n, std::complex<double> Y[]) {
+  std::complex<double>* _Y = new std::complex<double>[n*m];
+  for(uint32_t j=0; j<n; ++j) {
+    std::complex<double> x[m];
+    for(uint32_t e=0; e<m; ++e) {
+      x[e] = Y[e*n+j];
+    }
+    std::complex<double> X[m];
+    recursive_fft(m, x, X, true);
+    for(uint32_t e=0; e<m; ++e) {
+      _Y[e*n+j] = X[e]/(double)m;
+    }
+  }
+  //rows
+  for(uint32_t i=0; i<h; ++i) {
+    std::complex<double> x[n];
+    for(uint32_t e=0; e<n; ++e) {
+      x[e] = _Y[i*n+e];
+    }
+    std::complex<double> X[n];
+    recursive_fft(n, x, X, true);
+    for(uint32_t e=0; e<w; ++e) {
+      data[(i*w+e)*channels+channel] = round(X[e].real()*255/n);
+    }
+  }
+  delete[] _Y;
+  return *this;
+}
+
+/*
+std::complex<double>* Image::dft(uint8_t channel, std::complex<double>* Y) {
+  std::complex<double>* a = new std::complex<double>[n*m];
+  for(uint32_t i=0; i<h; ++i) {
+    for(uint32_t j=0; j<w; ++j) {
+      a[i*n+j] = std::complex<double>(data[(i*w+j)*channels+channel]/255.0,0);
+    }
+  }
+  std::complex<double>* b = new std::complex<double>[n*m];
+  for(uint32_t i=0; i<m; ++i) {
+    std::complex<double> x[n];
+    for(uint32_t e=0; e<n; ++e) {
+      x[e] = a[i*n+e];
+    }
+    std::complex<double> X[n];
+    recursive_fft(n, x, X, false);
+    for(uint32_t e=0; e<n; ++e) {
+      b[i*n+e] = X[e];
+    }
+  }
+  delete[] a;
+  for(uint32_t j=0; j<n; ++j) {
+    std::complex<double> x[m];
+    for(uint32_t e=0; e<m; ++e) {
+      x[e] = b[e*n+j];
+    }
+    std::complex<double> X[m];
+    recursive_fft(m, x, X, false);
+    for(uint32_t e=0; e<m; ++e) {
+      Y[e*n+j] = X[e];
+    }
+  }
+  delete[] b;
+  return Y;
+}
+Image& Image::idft(uint8_t channel, std::complex<double> Y[]) {
+  std::complex<double>* b = new std::complex<double>[n*m];
+  for(uint32_t j=0; j<n; ++j) {
+    std::complex<double> x[m];
+    for(uint32_t e=0; e<m; ++e) {
+      x[e] = Y[e*n+j];
+    }
+    std::complex<double> X[m];
+    recursive_fft(m, x, X, true);
+    for(uint32_t e=0; e<m; ++e) {
+      b[e*n+j] = X[e]/(double)m;
+    }
+  }
+  
+  std::complex<double>* a = new std::complex<double>[n*m];
+  for(uint32_t i=0; i<m; ++i) {
+    std::complex<double> x[n];
+    for(uint32_t e=0; e<n; ++e) {
+      x[e] = b[i*n+e];
+    }
+    std::complex<double> X[n];
+    recursive_fft(n, x, X, true);
+    for(uint32_t e=0; e<n; ++e) {
+      a[i*n+e] = X[e]/(double)n;
+    }
+  }
+  delete[] b;
+  for(uint32_t i=0; i<h; ++i) {
+    for(uint32_t j=0; j<w; ++j) {
+      data[(i*w+j)*channels+channel] = (uint8_t)round(a[i*n+j].real()*255);
+    }
+  }
+  delete[] a;
+  return *this;
+}
+*/
+
+
+
+
 
 
 Image& Image::diffmap(Image& img) {
@@ -82,9 +260,9 @@ Image& Image::diffmap(Image& img) {
     printf("Images %p and %p do not have the same number of channels, they were not compared.", this, &img);
   }
   else {
-    for(int j = 0; j < h; ++j) {
-      for(int i = 0; i < w*channels; ++i) {
-        data[j*w*channels + i] = abs(data[j*w*channels + i] - img.data[j*w*channels + i]);
+    for(int i = 0; i < h; ++i) {
+      for(int j = 0; j < w*channels; ++j) {
+        data[i*w*channels + j] = abs(data[i*w*channels + j] - img.data[i*w*channels + j]);
       }
     }
   }
@@ -97,10 +275,10 @@ Image& Image::diffmap_scale(Image& img, uint8_t scl) {
   }
   else {
     uint8_t largest = 0;
-    for(int j = 0; j < h; ++j) {
-      for(int i = 0; i < w*channels; ++i) {
-        data[j*w*channels + i] = abs(data[j*w*channels + i] - img.data[j*w*channels + i]);
-        largest = fmax(largest, data[j*w*channels + i]);
+    for(int i = 0; i < h; ++i) {
+      for(int j = 0; j < w*channels; ++j) {
+        data[i*w*channels + j] = abs(data[i*w*channels + j] - img.data[i*w*channels + j]);
+        largest = fmax(largest, data[i*w*channels + j]);
       }
     }
     scl = 255/fmax(1, fmax(scl, largest));
@@ -145,43 +323,10 @@ Image& Image::grayscale_lum() {
 
 
 
-
-Image& Image::convolve(Kernel& ker) {
-  uint8_t new_data[size];
-  for(int k = 0; k < size; k+=channels) {
-    double r = 0;
-    double g = 0;
-    double b = 0;
-
-    for(int i = -ker.cy; i < ker.side-ker.cy; ++i) {
-      for(int j = -ker.cx; j < ker.side-ker.cx; ++j) {
-        if((k/(channels*w)+i < 0) || (k/(channels*w)+i > h-1)) {
-          break;
-        }
-        if(((k/channels)%w+j < 0) || ((k/channels)%w+j > w-1)) {
-          continue;
-        }
-        else {
-          r += ker(i, j)*data[k+(i*ker.side+j)];
-          g += ker(i, j)*data[k+(i*ker.side+j)+1];
-          b += ker(i, j)*data[k+(i*ker.side+j)+2];
-        }
-      }
-    }
-    new_data[k] = (uint8_t)r;
-    new_data[k+1] = (uint8_t)g;
-    new_data[k+2] = (uint8_t)b;
-  }
-  memcpy(data, new_data, size);
-  return *this;
-}
-
-
-
 Image& Image::medianFilter(Image* imgs, uint8_t numImgs) {
   //Error Checking
   for(int i = 0;i < numImgs;++i) {
-    if((imgs[i].w != w || imgs[i].h != h)) {
+    if(imgs[i].w != w || imgs[i].h != h) {
       printf("\e[31m[ERROR] Median Filter requires all images be the same size (%d x %d)\e[0m\n", w, h);
       return *this;
     }
@@ -340,3 +485,36 @@ Image& Image::grainAdjust(uint8_t level) {
   return *this;
 }
 
+=======
+
+
+Image& Image::convolve_sd(Kernel& ker) {
+  uint8_t new_data[size];
+  for(int k = 0; k < size; k+=channels) {
+    double r = 0;
+    double g = 0;
+    double b = 0;
+
+    for(int i = -ker.cy; i < ker.side-ker.cy; ++i) {
+      for(int j = -ker.cx; j < ker.side-ker.cx; ++j) {
+        if((k/(channels*w)+i < 0) || (k/(channels*w)+i > h-1)) {
+          break;
+        }
+        if(((k/channels)%w+j < 0) || ((k/channels)%w+j > w-1)) {
+          continue;
+        }
+        else {
+          r += ker(i, j)*data[k+(i*ker.side+j)];
+          g += ker(i, j)*data[k+(i*ker.side+j)+1];
+          b += ker(i, j)*data[k+(i*ker.side+j)+2];
+        }
+      }
+    }
+    new_data[k] = (uint8_t)r;
+    new_data[k+1] = (uint8_t)g;
+    new_data[k+2] = (uint8_t)b;
+  }
+  memcpy(data, new_data, size);
+  return *this;
+}
+>>>>>>> dd74a608be78717999e1bfda42c3517fafbcabd4

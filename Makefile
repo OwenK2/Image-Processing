@@ -1,4 +1,4 @@
-CC				:= g++
+CC			:= g++
 TARGET		:= "ImageProcessing"
 BUILDDIR	:= build
 SRCDIR		:= src
