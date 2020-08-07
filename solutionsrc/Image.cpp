@@ -1,5 +1,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#define BYTE_BOUND(value) value < 0 ? 0 : (value > 255 ? 255 : value)
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include "Image.h"
@@ -34,7 +35,7 @@ bool Image::read(const char* filename, int channelForce) {
 
 bool Image::write(const char* filename) {
 	ImageType type = get_file_type(filename);
-	printf("Wrote %s, %d, %d, %d, %zu\n", filename, w, h, channels, size);
+	printf("\e[32mWrote \e[36m%s\e[0m, %d, %d, %d, %zu\n", filename, w, h, channels, size);
   int success;
   switch (type) {
     case PNG:
@@ -180,7 +181,7 @@ Image& Image::convolve(Kernel& ker) {
 Image& Image::medianFilter(Image* imgs, uint8_t numImgs) {
   //Error Checking
   for(int i = 0;i < numImgs;++i) {
-    if((imgs[i].w != w || imgs[i].h != h) && !printedSizeWarning) {
+    if((imgs[i].w != w || imgs[i].h != h)) {
       printf("\e[31m[ERROR] Median Filter requires all images be the same size (%d x %d)\e[0m\n", w, h);
       return *this;
     }
@@ -211,3 +212,131 @@ Image& Image::medianFilter(Image* imgs, uint8_t numImgs) {
   delete[] temp;
   return *this;
 }
+
+
+Image& Image::inverse() {
+  uint8_t effectiveChannels = channels > 3 ? 3 : channels;
+
+  for(int i = 0;i < w*h;++i) {
+    for(int j = 0;j < effectiveChannels;++j) {
+      data[i*channels+j] = 255 - data[i*channels+j];
+    }
+  }
+  return *this;
+}
+
+
+Image& Image::colorMask(float mask) {
+  return colorMask(mask, mask, mask);
+}
+Image& Image::colorMask(uint8_t mask) {
+  return colorMask(mask, mask, mask);
+}
+Image& Image::colorMask(uint8_t r, uint8_t g, uint8_t b) {
+  return colorMask(r/255.0f, g/255.0f, b/255.0f);
+}
+Image& Image::colorMask(float r, float g, float b) {
+  if(channels < 3) {
+    printf("\e[31m[ERROR] Color Mask requires at least 3 color channels (this image has %d)\e[0m\n", channels);
+  }
+  else if(r < 0 || r > 1 || g < 0 || g > 1 || b < 0 || b > 1) {
+    printf("\e[31m[ERROR] Color Mask values must bebetween 0-1\e[0m\n");
+  }
+  else {
+    for(int i = 0;i < size;i+=channels) {
+      data[i] *= r;
+      data[i+1] *= g;
+      data[i+2] *= b;
+    }
+  }
+
+  return *this;
+}
+
+
+Image& Image::encodeMessage(const char* message) {
+  unsigned int messageSize = strlen(message) * 8 + sizeof(unsigned int)*8;
+  if(messageSize > size) {
+    printf("\e[31m[ERROR] The message is too large for this image, it requires %d bits but image can only encode %zu bits\e[0m\n", messageSize, size);
+  }
+  else {
+    unsigned int textSize = strlen(message);
+    for(int i = 0;i < sizeof(unsigned int)*8;++i) {
+      if(textSize & 1) {
+        data[i] |= 1;
+      }
+      else {
+        data[i] &= 254;
+      }
+      textSize >>= 1;
+    }
+
+    for(int i = 0;i < strlen(message);++i) {
+      for(int j = 0;j < 8;++j) {
+        if((message[i] >> j) & 1) {
+          data[i*8+j+sizeof(unsigned int)*8] |= 1;
+        }
+        else {
+          data[i*8+j+sizeof(unsigned int)*8] &= 254;
+        }
+      }
+    }
+  }
+
+  return *this;
+}
+
+const char* Image::decodeMessage() {
+  unsigned int messageSize = 0;
+  for(int i = 0;i < sizeof(unsigned int)*8;++i) {
+    if(data[i] & 1) {
+      messageSize |= 1 << i;
+    }
+    else {
+      messageSize &= ~(1 << i);
+    }
+  }
+
+  char* message = new char[messageSize];
+  for(int i = 0;i < messageSize;++i) {
+    for(int j = 0;j < 8;++j) {
+      if(data[i*8+j+sizeof(unsigned int)*8] & 1) {
+        message[i] |= 1 << j;
+      }
+      else {
+        message[i] &= ~(1 << j);
+      }
+    }
+  }
+  return (const char*) message;
+}
+
+
+
+Image& Image::tempAdjust(short value) {
+  if(channels < 3) {
+    printf("\e[31m[ERROR] Warm filter requires at least 3 color channels (this image only has %d channels)\e[0m\n", channels);
+  }
+  else {
+    for(int i = 0;i < size;i += channels) {
+      data[i] = BYTE_BOUND(data[i] + value);
+      data[i+2] = BYTE_BOUND(data[i+2] - value);
+    }
+  }
+
+  return *this;
+}
+
+
+Image& Image::grainAdjust(uint8_t level) {
+  std::default_random_engine generator;
+  std::normal_distribution<double> dist(0,1);
+  uint8_t effectiveChannels = channels > 3 ? 3 : channels;
+  for(int i = 0;i < w*h;++i) {
+    for(int j = 0;j < effectiveChannels;++j) {
+      data[i*channels+j] = BYTE_BOUND(data[i*channels+j] + dist(generator));
+    }
+  }
+  return *this;
+}
+

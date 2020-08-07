@@ -12,11 +12,12 @@ Kernel::Kernel(uint8_t s, uint16_t c, double* m) : Kernel(s, c) {
 
 	double sum = 0;
 	for(int i=0; i<s*s; ++i) {
-		sum+=matrix[i];
+		sum += abs(matrix[i]);
 	}
 	for(int i=0; i<s*s; ++i) {
 		matrix[i] /= sum;
 	}
+
 }
 Kernel::Kernel(uint8_t s, double* m) : Kernel(s, s*s/2, m) {}
 

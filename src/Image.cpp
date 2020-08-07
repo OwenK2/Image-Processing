@@ -105,13 +105,19 @@ Image& Image::grayscale_lum() {
 }
 
 
-
-
-
-
-
-
-
+Image& Image::colorMask(float r, float g, float b) {
+	if(channels < 3) {
+		printf("\e[31m[ERROR] Color mask requires at least 3 channels, but this image has %d channels\e[0m\n", channels);
+	}
+	else {
+		for(int i = 0;i < size;i+=channels) {
+			data[i] *= r;
+			data[i+1] *= g;
+			data[i+2] *= b;
+		}
+	}
+	return *this;
+}
 
 
 

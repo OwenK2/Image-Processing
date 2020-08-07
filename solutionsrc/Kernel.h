@@ -17,6 +17,7 @@ struct Kernel {
 	Kernel(uint8_t s, uint16_t c, double* m);
 	Kernel(uint8_t s, double* m);
 
+
 	~Kernel();
 
 	double& operator()(int i, int j);

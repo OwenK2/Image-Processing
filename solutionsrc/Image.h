@@ -1,4 +1,5 @@
 #include "Kernel.h"
+#include <random>
 
 enum ImageType {
 	PNG,
@@ -15,7 +16,7 @@ struct Image {
 	int channels;
 	
 	Image(const char* filename, int channelForce = 0);
-	Image(int w, int h, int channels);
+	Image(int w, int h, int channels = 3);
 	Image(const Image& img);
 	~Image();
 
@@ -37,10 +38,22 @@ struct Image {
 
 	Image& medianFilter(Image* imgs, uint8_t numImages);
 
+	Image& inverse();
+
+	Image& colorMask(uint8_t mask);
+	Image& colorMask(uint8_t r, uint8_t g, uint8_t b);
+	Image& colorMask(float mask);
+	Image& colorMask(float r, float g, float b);
+
+	Image& encodeMessage(const char* message);
+	const char* decodeMessage();
+
 	
 
 	Image& gaussian_blur();
 
+	Image& tempAdjust(short value);
+	Image& grainAdjust(uint8_t value);
 
 
 
