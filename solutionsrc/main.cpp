@@ -1,37 +1,32 @@
 #include "Image.h"
 
 int main(int argc, char** argv) {
+	Image test("imgs/test1.jpg");
 
-
-
-	Image test("imgs/test3.jpg");
-
-	std::complex<double>* FDR = new std::complex<double>[test.pw*test.ph];
-	test.dft(0, test.ph, test.pw, FDR);
-	std::complex<double>* FDG = new std::complex<double>[test.pw*test.ph];
-	test.dft(1, test.ph, test.pw, FDG);
-	std::complex<double>* FDB = new std::complex<double>[test.pw*test.ph];
-	test.dft(2, test.ph, test.pw, FDB);
+	double ker[] = {0.0625, 0.125, 0.0625, 0.125, 0.25, 0.125, 0.0625, 0.125, 0.0625};
 	
-	Image recoveredTest(test.w, test.h, 3);
-	recoveredTest.idft(0, test.ph, test.pw, FDR);
-	recoveredTest.idft(1, test.ph, test.pw, FDG);
-	recoveredTest.idft(2, test.ph, test.pw, FDB);
+	Image cSTD = test;
+	Image cFD = test;
 
-	recoveredTest.write("imgs/recovered.png");
+	cSTD.convolve_sd(0, 3, 3, ker);
+	cSTD.convolve_sd(1, 3, 3, ker);
+	cSTD.convolve_sd(2, 3, 3, ker);
 
-	Image diff = test;
-	diff.diffmap_scale(recoveredTest);
+	cFD.convolve_fd(0, 3, 3, ker);
+	cFD.convolve_fd(1, 3, 3, ker);
+	cFD.convolve_fd(2, 3, 3, ker);
+
+	cSTD.write("imgs/std_conv.png");
+	cFD.write("imgs/fd_conv.png");
+
+	Image diff = cSTD;
+	diff.diffmap(cFD);
 	for(uint64_t k=0; k<diff.size; ++k) {
 		if(diff.data[k]!=0) {
-			printf("Original image and one recovered from fourier domain do not match.\n");
+			printf("Not matching at index %llu: %d =/= %d\n", k, cSTD.data[k], cFD.data[k]);
 		}
 	}
-	//diff.write("FTCheck.png");
-
-	delete[] FDR;
-	delete[] FDG;
-	delete[] FDB;
+	diff.write("imgs/ConCheck.png");
 
 	return 0;
 }

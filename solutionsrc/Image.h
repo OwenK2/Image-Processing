@@ -23,9 +23,9 @@ struct Image {
 	int channels; //channels
 	size_t size = 0; //w*h*channels
 
-	uint32_t ph; 
-  	uint32_t pw;
-  	uint64_t psize;
+	uint32_t ph; //padded pixel height (no channels)
+  	uint32_t pw; //padded pixel width (no channels)
+  	uint64_t psize; //padded pixel size (no channels)
 	
 	Image(const char* filename, int channelForce = 0);
 	Image(int w, int h, int channels = 3);
@@ -40,8 +40,16 @@ struct Image {
 
 
 	static std::complex<double>* recursive_fft(uint32_t n, std::complex<double> x[], std::complex<double>* X, bool inverse);
-	std::complex<double>* dft(uint8_t channel, uint32_t m, uint32_t n, std::complex<double>* Y);
-	Image& idft(uint8_t channel, uint32_t m, uint32_t n, std::complex<double> Y[]);
+	static std::complex<double>* dft(uint32_t m, uint32_t n, std::complex<double> y[], std::complex<double>* Y);
+	static std::complex<double>* idft(uint32_t m, uint32_t n, std::complex<double> Y[], std::complex<double>* y);
+
+	static std::complex<double>* pointwise_mult(uint64_t len, std::complex<double> a[], std::complex<double> b[], std::complex<double>* p);
+
+	//TODO: add convolve function that chooses from the following based on image and kernel size
+	Image& convolve_sd(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+	Image& convolve_fd(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+
+	Image& gaussian_blur();
 
 
 
@@ -62,13 +70,6 @@ struct Image {
 
 	Image& encodeMessage(const char* message);
 	const char* decodeMessage();
-
-	Image& convolve(Kernel& ker);
-	Image& convolve(Image& ker);
-	Image& convolve_sd(Kernel& ker);
-	Image& convolve_fd(Image& ker);
-
-	Image& gaussian_blur();
 
 	Image& tempAdjust(short value);
 	Image& grainAdjust(uint8_t value);
