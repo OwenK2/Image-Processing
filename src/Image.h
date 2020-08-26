@@ -20,12 +20,16 @@ struct Image {
 	bool read(const char* filename);
 	bool write(const char* filename);
 
-	ImageType getFileType(const char* filename);
+	ImageType get_file_type(const char* filename);
+
+	
+	Image& convolve_sd(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+
 
 	Image& grayscale_avg();
 	Image& grayscale_lum();
 
-	Image& colorMask(float r, float g, float b);
+	Image& color_mask(float r, float g, float b);
 
 
 };

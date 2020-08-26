@@ -35,7 +35,7 @@ bool Image::read(const char* filename) {
 }
 
 bool Image::write(const char* filename) {
-	ImageType type = getFileType(filename);
+	ImageType type = get_file_type(filename);
 	int success;
   switch (type) {
     case PNG:
@@ -54,7 +54,7 @@ bool Image::write(const char* filename) {
   return success != 0;
 }
 
-ImageType Image::getFileType(const char* filename) {
+ImageType Image::get_file_type(const char* filename) {
 	const char* ext = strrchr(filename, '.');
 	if(ext != nullptr) {
 		if(strcmp(ext, ".png") == 0) {
@@ -74,6 +74,33 @@ ImageType Image::getFileType(const char* filename) {
 }
 
 
+Image& Image::convolve_sd(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+	uint8_t new_data[w*h];
+	uint64_t center = ker_w*ker_h/2;
+	for(uint64_t k=channel; k<size; k+=channels) {
+		double c = 0;
+		for(int i= -(int)ker_h/2; i <= (int)ker_h/2; ++i) {
+			int row = ((int)k/channels)/w + i;
+			if((row < 0) || (row > h-1)) {
+				continue;
+			}
+			for(int j = -(int)ker_w/2; j <= (int)ker_w/2; ++j) {
+				int col = ((int)k/channels)%w+j;
+				if((col < 0) || (col > w-1)) {
+					continue;
+				}
+				else {
+					c += ker[center+i*(int)ker_w+j]*data[k+(i*w+j)*(int)channels];
+				}
+			}
+		}
+		new_data[k/channels] = (uint8_t)round(c);
+	}
+	for(uint64_t k=channel; k<size; k+=channels) {
+		data[k] = new_data[k/channels];
+	}
+	return *this;
+}
 
 
 Image& Image::grayscale_avg() {
@@ -105,7 +132,7 @@ Image& Image::grayscale_lum() {
 }
 
 
-Image& Image::colorMask(float r, float g, float b) {
+Image& Image::color_mask(float r, float g, float b) {
 	if(channels < 3) {
 		printf("\e[31m[ERROR] Color mask requires at least 3 channels, but this image has %d channels\e[0m\n", channels);
 	}

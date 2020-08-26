@@ -22,9 +22,9 @@ struct Image {
 	int channels; //channels
 	size_t size = 0; //w*h*channels
 
-	uint32_t ph; //padded pixel height (no channels)
-  	uint32_t pw; //padded pixel width (no channels)
-  	uint64_t psize; //padded pixel size (no channels)
+	uint32_t ph; //padded pixel height (no channels), can change depending on size of kernel being convolved on image
+  	uint32_t pw; //padded pixel width (no channels), can change depending on size of kernel being convolved on image
+  	uint64_t psize; //padded pixel size (no channels), can change depending on size of kernel being convolved on image
 	
 	Image(const char* filename, int channelForce = 0);
 	Image(int w, int h, int channels = 3);
@@ -44,10 +44,19 @@ struct Image {
 
 	static std::complex<double>* pointwise_mult(uint64_t len, std::complex<double> a[], std::complex<double> b[], std::complex<double>* p);
 
-	//TODO: add convolve function that chooses from the following based on image and kernel size
-	Image& convolve_sd(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
-	Image& convolve_fd(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
 
+	//TODO: add convolve function that chooses from the following based on image and kernel size
+
+	Image& std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+	Image& fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+	// TODO: implement cyclic & clamp_to_border
+	Image& std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+	Image& fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+
+	Image& std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+	Image& fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+
+	
 	Image& gaussian_blur();
 
 
