@@ -80,7 +80,7 @@ ImageType Image::get_file_type(const char* filename) {
 
 
 
-//doesnt divide, you must do that
+//doesn't divide for inverse
 std::complex<double>* Image::recursive_fft(uint32_t n, std::complex<double> x[], std::complex<double>* X, bool inverse) {
   if(n == 1) {
     X[0] = x[0];
@@ -191,7 +191,7 @@ std::complex<double>* Image::pointwise_mult(uint64_t len, std::complex<double> a
   return p;
 }
 
-
+//TODO: go through all these functions and see if optimization is possible
 Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
   uint8_t new_data[w*h];
   uint64_t center = ker_w*ker_h/2;
@@ -199,17 +199,17 @@ Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t 
     double c = 0;
 
     for(int i = (int)ker_h/2; i >= -(int)ker_h/2; --i) {
-      int row = ((int)k/channels)/w+i;
+      long row = ((long)k/channels)/w+i;
       if((row < 0) || (row > h-1)) {
         continue;
       }
       for(int j = (int)ker_w/2; j >= -(int)ker_w/2; --j) {
-        int col = ((int)k/channels)%w+j;
+        long col = ((long)k/channels)%w+j;
         if((col < 0) || (col > w-1)) {
           continue;
         }
         else {
-          c += ker[center+i*(int)ker_w+j]*data[k+(i*w+j)*(int)channels];
+          c += ker[center+i*(int)ker_w+j]*data[(row*w+col)*channels+channel];
         }
       }
     }
@@ -220,7 +220,6 @@ Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t 
   }
   return *this;
 }
-
 Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
   //TODO: pad to next power of 2 if less than 1024, otherwise pad to multiple of 512 (how to implement this?)
   pw = pow(2, ceil(log2(w+ker_w-1)));
@@ -236,9 +235,9 @@ Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t k
   std::complex<double>* _ker = new std::complex<double>[ph*pw];
   for(int i=-(int)ker_h/2; i<=(int)ker_h/2; ++i) {
     for(int j=-(int)ker_w/2; j<=(int)ker_w/2; ++j) {
-      uint32_t row = i<0 ? i+ph : i;
-      uint32_t col = j<0 ? j+pw : j;
-      _ker[row*pw+col] = std::complex<double>(ker[(i+ker_h/2)*ker_w+(j+ker_w/2)],0);
+      uint32_t r = i<0 ? i+ph : i;
+      uint32_t c = j<0 ? j+pw : j;
+      _ker[r*pw+c] = std::complex<double>(ker[(i+ker_h/2)*ker_w+(j+ker_w/2)],0);
     }
   }
 
@@ -273,7 +272,177 @@ Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t k
   return *this;
 }
 
+Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+  uint8_t new_data[w*h];
+  uint64_t center = ker_w*ker_h/2;
+  for(uint64_t k=channel; k<size; k+=channels) {
+    double c = 0;
 
+    for(int i = (int)ker_h/2; i >= -(int)ker_h/2; --i) {
+      long row = ((long)k/channels)/w+i;
+      if(row < 0) {
+        row = 0;
+      }
+      else if(row > h-1) {
+        row = h-1;
+      }
+      for(int j = (int)ker_w/2; j >= -(int)ker_w/2; --j) {
+        long col = ((long)k/channels)%w+j;
+        if(col < 0) {
+          col = 0;
+        }
+        else if(col > w-1) {
+          col = w-1;
+        }
+        c += ker[center+i*(int)ker_w+j]*data[(row*w+col)*channels+channel];
+      }
+    }
+    new_data[k/channels] = (uint8_t)round(c);
+  }
+  for(uint64_t k=channel; k<size; k+=channels) {
+    data[k] = BYTE_BOUND(new_data[k/channels]);
+  }
+  return *this;
+}
+Image& Image::fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+  //TODO: pad to next power of 2 if less than 1024, otherwise pad to multiple of 512 (how to implement this?)
+  pw = pow(2, ceil(log2(w+ker_w-1)));
+  ph = pow(2, ceil(log2(h+ker_h-1)));
+  psize = pw*ph;
+
+  std::complex<double>* img = new std::complex<double>[ph*pw];
+  for(uint32_t i=0; i<ph; ++i) {
+    for(uint32_t j=0; j<pw; ++j) {
+      uint32_t r = i<h ? i : (i<h+ker_h/2 ? h-1 : 0);
+      uint32_t c = j<w ? j : (j<w+ker_w/2 ? w-1 : 0);
+      img[i*pw+j] = std::complex<double>(data[(r*w+c)*channels+channel],0);
+    }
+  }
+  std::complex<double>* _ker = new std::complex<double>[ph*pw];
+  for(int i=-(int)ker_h/2; i<=(int)ker_h/2; ++i) {
+    for(int j=-(int)ker_w/2; j<=(int)ker_w/2; ++j) {
+      uint32_t r = i<0 ? i+ph : i;
+      uint32_t c = j<0 ? j+pw : j;
+      _ker[r*pw+c] = std::complex<double>(ker[(i+ker_h/2)*ker_w+(j+ker_w/2)],0);
+    }
+  }
+
+  std::complex<double>* imgFD = new std::complex<double>[ph*pw];
+  std::complex<double>* kerFD = new std::complex<double>[ph*pw];
+  
+  dft(ph, pw, img, imgFD);
+  dft(ph, pw, _ker, kerFD);
+
+  delete[] img;
+  delete[] _ker;
+
+  std::complex<double>* resFD = new std::complex<double>[ph*pw];
+  pointwise_mult(ph*pw, imgFD, kerFD, resFD);
+
+  delete[] imgFD;
+  delete[] kerFD;
+
+  std::complex<double>* res = new std::complex<double>[ph*pw];
+  idft(ph, pw, resFD, res);
+
+  delete[] resFD;
+
+  for(uint32_t i=0; i<h; ++i) {
+    for(uint32_t j=0; j<w; ++j) {
+      data[(i*w+j)*channels+channel] = BYTE_BOUND((uint8_t)round(res[i*pw+j].real()));
+    }
+  }
+
+  delete[] res;
+
+  return *this;
+}
+
+Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+  uint8_t new_data[w*h];
+  uint64_t center = ker_w*ker_h/2;
+  for(uint64_t k=channel; k<size; k+=channels) {
+    double c = 0;
+
+    for(int i = (int)ker_h/2; i >= -(int)ker_h/2; --i) {
+      long row = ((long)k/channels)/w+i;
+      if(row < 0) {
+        row = row%h + h;
+      }
+      else if(row > h-1) {
+        row %= h;
+      }
+      for(int j = (int)ker_w/2; j >= -(int)ker_w/2; --j) {
+        long col = ((long)k/channels)%w+j;
+        if(col < 0) {
+          col = col%w + w;
+        }
+        else if(col > w-1) {
+          col %= w;
+        }
+        c += ker[center+i*(int)ker_w+j]*data[(row*w+col)*channels+channel];
+      }
+    }
+    new_data[k/channels] = (uint8_t)round(c);
+  }
+  for(uint64_t k=channel; k<size; k+=channels) {
+    data[k] = BYTE_BOUND(new_data[k/channels]);
+  }
+  return *this;
+}
+Image& Image::fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+  //TODO: pad to next power of 2 if less than 1024, otherwise pad to multiple of 512 (how to implement this?)
+  pw = pow(2, ceil(log2(w+ker_w-1)));
+  ph = pow(2, ceil(log2(h+ker_h-1)));
+  psize = pw*ph;
+
+  std::complex<double>* img = new std::complex<double>[ph*pw];
+  for(uint32_t i=0; i<ph; ++i) {
+    for(uint32_t j=0; j<pw; ++j) {
+      uint32_t r = i<h ? i : (i<h+ker_h/2 ? i%h : i-ph+h);
+      uint32_t c = j<w ? j : (j<w+ker_w/2 ? j%w : j-pw+w);
+      img[i*pw+j] = std::complex<double>(data[(r*w+c)*channels+channel],0);
+    }
+  }
+  std::complex<double>* _ker = new std::complex<double>[ph*pw];
+  for(int i=-(int)ker_h/2; i<=(int)ker_h/2; ++i) {
+    for(int j=-(int)ker_w/2; j<=(int)ker_w/2; ++j) {
+      uint32_t r = i<0 ? i+ph : i;
+      uint32_t c = j<0 ? j+pw : j;
+      _ker[r*pw+c] = std::complex<double>(ker[(i+ker_h/2)*ker_w+(j+ker_w/2)],0);
+    }
+  }
+
+  std::complex<double>* imgFD = new std::complex<double>[ph*pw];
+  std::complex<double>* kerFD = new std::complex<double>[ph*pw];
+  
+  dft(ph, pw, img, imgFD);
+  dft(ph, pw, _ker, kerFD);
+
+  delete[] img;
+  delete[] _ker;
+
+  std::complex<double>* resFD = new std::complex<double>[ph*pw];
+  pointwise_mult(ph*pw, imgFD, kerFD, resFD);
+
+  delete[] imgFD;
+  delete[] kerFD;
+
+  std::complex<double>* res = new std::complex<double>[ph*pw];
+  idft(ph, pw, resFD, res);
+
+  delete[] resFD;
+
+  for(uint32_t i=0; i<h; ++i) {
+    for(uint32_t j=0; j<w; ++j) {
+      data[(i*w+j)*channels+channel] = BYTE_BOUND((uint8_t)round(res[i*pw+j].real()));
+    }
+  }
+
+  delete[] res;
+
+  return *this;
+}
 
 
 
@@ -328,7 +497,6 @@ Image& Image::grayscale_avg() {
 
   return *this;
 }
-
 Image& Image::grayscale_lum() {
   //if there are less than 3 channels, the image is already grayscale
   if(channels < 3) {
@@ -380,7 +548,6 @@ Image& Image::medianFilter(Image* imgs, uint8_t numImgs) {
   delete[] temp;
   return *this;
 }
-
 
 Image& Image::inverse() {
   uint8_t effectiveChannels = channels > 3 ? 3 : channels;
@@ -453,7 +620,6 @@ Image& Image::encodeMessage(const char* message) {
 
   return *this;
 }
-
 const char* Image::decodeMessage() {
   unsigned int messageSize = 0;
   for(int i = 0;i < sizeof(unsigned int)*8;++i) {
@@ -480,7 +646,6 @@ const char* Image::decodeMessage() {
 }
 
 
-
 Image& Image::tempAdjust(short value) {
   if(channels < 3) {
     printf("\e[31m[ERROR] Warm filter requires at least 3 color channels (this image only has %d channels)\e[0m\n", channels);
@@ -494,7 +659,6 @@ Image& Image::tempAdjust(short value) {
 
   return *this;
 }
-
 
 Image& Image::grainAdjust(uint8_t level) {
   std::default_random_engine generator;
