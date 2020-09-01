@@ -149,9 +149,40 @@ Image& Image::color_mask(float r, float g, float b) {
 
 
 
+Image& Image::encodeMessage(const char* message) {
+	uint32_t len = strlen(message) * 8;
+	if(len + STEG_HEADER_SIZE > size) {
+		printf("\e[31m[ERROR] This message is too large (%lu bits / %zu bits)\e[0m\n", len+STEG_HEADER_SIZE, size);
+		return *this;
+	}
+
+	for(uint8_t i = 0;i < STEG_HEADER_SIZE;++i) {
+		data[i] &= 0xFE;
+		data[i] |= (len >> (STEG_HEADER_SIZE - 1 - i)) & 1UL;
+	}
+
+	for(uint32_t i = 0;i < len;++i) {
+		data[i+STEG_HEADER_SIZE] &= 0xFE;
+		data[i+STEG_HEADER_SIZE] |= (message[i/8] >> ((len-1-i)%8)) & 1;
+	}
+
+	return *this;
+}
+
+Image& Image::decodeMessage(char* buffer, size_t* messageLength) {
+	uint32_t len = 0;
+	for(uint8_t i = 0;i < STEG_HEADER_SIZE;++i) {
+		len = (len << 1) | (data[i] & 1);
+	}
+	*messageLength = len / 8;
+
+	for(uint32_t i = 0;i < len;++i) {
+		buffer[i/8] = (buffer[i/8] << 1) | (data[i+STEG_HEADER_SIZE] & 1);
+	}
 
 
-
+	return *this;
+}
 
 
 
