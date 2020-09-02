@@ -7,6 +7,8 @@
 #include <cmath>
 #define _USE_MATH_DEFINES //legacy feature of C
 
+#define STEG_HEADER_SIZE sizeof(uint32_t) * 8
+
 enum ImageType {
 	PNG,
 	JPG,
@@ -77,7 +79,7 @@ struct Image {
 	Image& colorMask(float r, float g, float b);
 
 	Image& encodeMessage(const char* message);
-	const char* decodeMessage();
+	Image& decodeMessage(char* buffer, size_t* messageLength);
 
 	Image& tempAdjust(short value);
 	Image& grainAdjust(uint8_t value);

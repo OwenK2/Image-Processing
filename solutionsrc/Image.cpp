@@ -589,60 +589,40 @@ Image& Image::colorMask(float r, float g, float b) {
 }
 
 
-Image& Image::encodeMessage(const char* message) {
-  unsigned int messageSize = strlen(message) * 8 + sizeof(unsigned int)*8;
-  if(messageSize > size) {
-    printf("\e[31m[ERROR] The message is too large for this image, it requires %d bits but image can only encode %zu bits\e[0m\n", messageSize, size);
-  }
-  else {
-    unsigned int textSize = strlen(message);
-    for(int i = 0;i < sizeof(unsigned int)*8;++i) {
-      if(textSize & 1) {
-        data[i] |= 1;
-      }
-      else {
-        data[i] &= 254;
-      }
-      textSize >>= 1;
-    }
 
-    for(int i = 0;i < strlen(message);++i) {
-      for(int j = 0;j < 8;++j) {
-        if((message[i] >> j) & 1) {
-          data[i*8+j+sizeof(unsigned int)*8] |= 1;
-        }
-        else {
-          data[i*8+j+sizeof(unsigned int)*8] &= 254;
-        }
-      }
-    }
+Image& Image::encodeMessage(const char* message) {
+  uint32_t len = strlen(message) * 8;
+  if(len + STEG_HEADER_SIZE > size) {
+    printf("\e[31m[ERROR] This message is too large (%lu bits / %zu bits)\e[0m\n", len+STEG_HEADER_SIZE, size);
+    return *this;
+  }
+
+  for(uint8_t i = 0;i < STEG_HEADER_SIZE;++i) {
+    data[i] &= 0xFE;
+    data[i] |= (len >> (STEG_HEADER_SIZE - 1 - i)) & 1UL;
+  }
+
+  for(uint32_t i = 0;i < len;++i) {
+    data[i+STEG_HEADER_SIZE] &= 0xFE;
+    data[i+STEG_HEADER_SIZE] |= (message[i/8] >> ((len-1-i)%8)) & 1;
   }
 
   return *this;
 }
-const char* Image::decodeMessage() {
-  unsigned int messageSize = 0;
-  for(int i = 0;i < sizeof(unsigned int)*8;++i) {
-    if(data[i] & 1) {
-      messageSize |= 1 << i;
-    }
-    else {
-      messageSize &= ~(1 << i);
-    }
+
+Image& Image::decodeMessage(char* buffer, size_t* messageLength) {
+  uint32_t len = 0;
+  for(uint8_t i = 0;i < STEG_HEADER_SIZE;++i) {
+    len = (len << 1) | (data[i] & 1);
+  }
+  *messageLength = len / 8;
+
+  for(uint32_t i = 0;i < len;++i) {
+    buffer[i/8] = (buffer[i/8] << 1) | (data[i+STEG_HEADER_SIZE] & 1);
   }
 
-  char* message = new char[messageSize];
-  for(int i = 0;i < messageSize;++i) {
-    for(int j = 0;j < 8;++j) {
-      if(data[i*8+j+sizeof(unsigned int)*8] & 1) {
-        message[i] |= 1 << j;
-      }
-      else {
-        message[i] &= ~(1 << j);
-      }
-    }
-  }
-  return (const char*) message;
+
+  return *this;
 }
 
 
