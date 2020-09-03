@@ -26,6 +26,7 @@ struct Image {
 
 	
 	
+	Image& diffmap(Image& img);
 
 
 	Image& grayscale_avg();

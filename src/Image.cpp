@@ -1,5 +1,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include "Image.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
@@ -74,7 +75,19 @@ ImageType Image::get_file_type(const char* filename) {
 }
 
 
-
+Image& Image::diffmap(Image& img) {
+	int compare_width = min(w,img.w);
+	int compare_height = min(h,img.h);
+	int channels = min(channels,img.channels);
+	for(uint32_t i=0; i<compare_height; ++i) {
+		for(uint32_t j=0; j<compare_width; ++j) {
+			for(uint8_t k=0; k<channels; ++k) {
+				data[(i*w+j)*channels+k] = BYTE_BOUND(abs(data[(i*w+j)*channels+k]-img[(i*w+j)*channels+k]));
+			}
+		}
+	}
+	return *this;
+}
 
 
 Image& Image::grayscale_avg() {
