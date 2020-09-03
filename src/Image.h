@@ -23,7 +23,7 @@ struct Image {
 	ImageType get_file_type(const char* filename);
 
 	
-	Image& convolve_sd(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]);
+	
 
 
 	Image& grayscale_avg();
