@@ -199,12 +199,12 @@ Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t 
     double c = 0;
 
     for(int i = (int)ker_h/2; i >= -(int)ker_h/2; --i) {
-      long row = ((long)k/channels)/w+i;
+      long row = ((long)k/channels)/w-i;
       if((row < 0) || (row > h-1)) {
         continue;
       }
       for(int j = (int)ker_w/2; j >= -(int)ker_w/2; --j) {
-        long col = ((long)k/channels)%w+j;
+        long col = ((long)k/channels)%w-j;
         if((col < 0) || (col > w-1)) {
           continue;
         }
@@ -233,8 +233,8 @@ Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t k
     }
   }
   std::complex<double>* _ker = new std::complex<double>[ph*pw];
-  for(int i=-(int)ker_h/2; i<=(int)ker_h/2; ++i) {
-    for(int j=-(int)ker_w/2; j<=(int)ker_w/2; ++j) {
+  for(int i=(int)ker_h/2; i>=-(int)ker_h/2; --i) {
+    for(int j=(int)ker_w/2; j>=-(int)ker_w/2; --j) {
       uint32_t r = i<0 ? i+ph : i;
       uint32_t c = j<0 ? j+pw : j;
       _ker[r*pw+c] = std::complex<double>(ker[(i+ker_h/2)*ker_w+(j+ker_w/2)],0);
@@ -279,7 +279,7 @@ Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint
     double c = 0;
 
     for(int i = (int)ker_h/2; i >= -(int)ker_h/2; --i) {
-      long row = ((long)k/channels)/w+i;
+      long row = ((long)k/channels)/w-i;
       if(row < 0) {
         row = 0;
       }
@@ -287,7 +287,7 @@ Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint
         row = h-1;
       }
       for(int j = (int)ker_w/2; j >= -(int)ker_w/2; --j) {
-        long col = ((long)k/channels)%w+j;
+        long col = ((long)k/channels)%w-j;
         if(col < 0) {
           col = 0;
         }
@@ -365,7 +365,7 @@ Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_
     double c = 0;
 
     for(int i = (int)ker_h/2; i >= -(int)ker_h/2; --i) {
-      long row = ((long)k/channels)/w+i;
+      long row = ((long)k/channels)/w-i;
       if(row < 0) {
         row = row%h + h;
       }
@@ -373,7 +373,7 @@ Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_
         row %= h;
       }
       for(int j = (int)ker_w/2; j >= -(int)ker_w/2; --j) {
-        long col = ((long)k/channels)%w+j;
+        long col = ((long)k/channels)%w-j;
         if(col < 0) {
           col = col%w + w;
         }
