@@ -13,9 +13,13 @@ int main(int argc, char** argv) {
 	cSTD.std_convolve_cyclic(1, 3, 3, ker);
 	cSTD.std_convolve_cyclic(2, 3, 3, ker);
 
-	cFD.fd_convolve_cyclic(0, 3, 3, ker);
-	cFD.fd_convolve_cyclic(1, 3, 3, ker);
-	cFD.fd_convolve_cyclic(2, 3, 3, ker);
+	cFD.std_convolve_clamp_to_border(0, 3, 3, ker);
+	cFD.std_convolve_clamp_to_border(1, 3, 3, ker);
+	cFD.std_convolve_clamp_to_border(2, 3, 3, ker);
+
+	// cFD.fd_convolve_cyclic(0, 3, 3, ker);
+	// cFD.fd_convolve_cyclic(1, 3, 3, ker);
+	// cFD.fd_convolve_cyclic(2, 3, 3, ker);
 
 	cSTD.write("imgs/std_conv.png");
 	cFD.write("imgs/fd_conv.png");

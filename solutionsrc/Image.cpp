@@ -213,10 +213,10 @@ Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t 
         }
       }
     }
-    new_data[k/channels] = (uint8_t)round(c);
+    new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
   }
   for(uint64_t k=channel; k<size; k+=channels) {
-    data[k] = BYTE_BOUND(new_data[k/channels]);
+    data[k] = new_data[k/channels];
   }
   return *this;
 }
@@ -297,10 +297,10 @@ Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint
         c += ker[center+i*(int)ker_w+j]*data[(row*w+col)*channels+channel];
       }
     }
-    new_data[k/channels] = (uint8_t)round(c);
+    new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
   }
   for(uint64_t k=channel; k<size; k+=channels) {
-    data[k] = BYTE_BOUND(new_data[k/channels]);
+    data[k] = new_data[k/channels];
   }
   return *this;
 }
@@ -383,10 +383,10 @@ Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_
         c += ker[center+i*(int)ker_w+j]*data[(row*w+col)*channels+channel];
       }
     }
-    new_data[k/channels] = (uint8_t)round(c);
+    new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
   }
   for(uint64_t k=channel; k<size; k+=channels) {
-    data[k] = BYTE_BOUND(new_data[k/channels]);
+    data[k] = new_data[k/channels];
   }
   return *this;
 }
