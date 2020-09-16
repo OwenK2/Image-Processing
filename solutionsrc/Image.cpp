@@ -191,26 +191,35 @@ std::complex<double>* Image::pointwise_mult(uint64_t len, std::complex<double> a
   return p;
 }
 
+std::complex<double>* Image::pad_kernel(uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc, std::complex<double>* pad_ker) {
+  for(long i=-((long)cr); i<(long)ker_h-cr; ++i) {
+    for(long j=-((long)cc); j<(long)ker_w-cc; ++j) {
+      uint32_t r = i<0 ? i+ph : i;
+      uint32_t c = j<0 ? j+pw : j;
+      pad_ker[r*pw+c] = std::complex<double>(ker[(i+cr)*ker_w+(j+cc)],0);
+    }
+  }
+  return pad_ker;
+}
+
 //TODO: go through all these functions and see if optimization is possible
-Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   uint8_t new_data[w*h];
-  uint64_t center = ker_w*ker_h/2;
+  uint64_t center = cr*ker_w + cc;
   for(uint64_t k=channel; k<size; k+=channels) {
     double c = 0;
 
-    for(int i = (int)ker_h/2; i >= -(int)ker_h/2; --i) {
-      long row = ((long)k/channels)/w-i;
+    for(long i = -((long)cr); i < (long)ker_h-cr; ++i) {
+      long row = ((long)k/channels)/w-i; //-i because kernel is flipped as convolved
       if((row < 0) || (row > h-1)) {
         continue;
       }
-      for(int j = (int)ker_w/2; j >= -(int)ker_w/2; --j) {
-        long col = ((long)k/channels)%w-j;
+      for(long j = -((long)cc); j < (long)ker_w-cc; ++j) {
+        long col = ((long)k/channels)%w-j; //-j because kernel is flipped as convolved
         if((col < 0) || (col > w-1)) {
           continue;
         }
-        else {
-          c += ker[center+i*(int)ker_w+j]*data[(row*w+col)*channels+channel];
-        }
+        c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
       }
     }
     new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
@@ -220,7 +229,7 @@ Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t 
   }
   return *this;
 }
-Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   //TODO: pad to next power of 2 if less than 1024, otherwise pad to multiple of 512 (how to implement this?)
   pw = pow(2, ceil(log2(w+ker_w-1)));
   ph = pow(2, ceil(log2(h+ker_h-1)));
@@ -233,13 +242,7 @@ Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t k
     }
   }
   std::complex<double>* _ker = new std::complex<double>[ph*pw];
-  for(int i=(int)ker_h/2; i>=-(int)ker_h/2; --i) {
-    for(int j=(int)ker_w/2; j>=-(int)ker_w/2; --j) {
-      uint32_t r = i<0 ? i+ph : i;
-      uint32_t c = j<0 ? j+pw : j;
-      _ker[r*pw+c] = std::complex<double>(ker[(i+ker_h/2)*ker_w+(j+ker_w/2)],0);
-    }
-  }
+  pad_kernel(ker_w, ker_h, ker, cr, cc, _ker);
 
   std::complex<double>* imgFD = new std::complex<double>[ph*pw];
   std::complex<double>* kerFD = new std::complex<double>[ph*pw];
@@ -272,29 +275,28 @@ Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t k
   return *this;
 }
 
-Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   uint8_t new_data[w*h];
-  uint64_t center = ker_w*ker_h/2;
+  uint64_t center = cr*ker_w + cc;
   for(uint64_t k=channel; k<size; k+=channels) {
     double c = 0;
-
-    for(int i = (int)ker_h/2; i >= -(int)ker_h/2; --i) {
-      long row = ((long)k/channels)/w-i;
+    for(long i = -((long)cr); i < (long)ker_h-cr; ++i) {
+      long row = ((long)k/channels)/w-i; //-i because kernel is flipped as convolved
       if(row < 0) {
         row = 0;
       }
       else if(row > h-1) {
         row = h-1;
       }
-      for(int j = (int)ker_w/2; j >= -(int)ker_w/2; --j) {
-        long col = ((long)k/channels)%w-j;
+      for(long j = -((long)cc); j < (long)ker_w-cc; ++j) {
+        long col = ((long)k/channels)%w-j; //-j because kernel is flipped as convolved
         if(col < 0) {
           col = 0;
         }
         else if(col > w-1) {
           col = w-1;
         }
-        c += ker[center+i*(int)ker_w+j]*data[(row*w+col)*channels+channel];
+        c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
       }
     }
     new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
@@ -304,7 +306,7 @@ Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint
   }
   return *this;
 }
-Image& Image::fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+Image& Image::fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   //TODO: pad to next power of 2 if less than 1024, otherwise pad to multiple of 512 (how to implement this?)
   pw = pow(2, ceil(log2(w+ker_w-1)));
   ph = pow(2, ceil(log2(h+ker_h-1)));
@@ -313,19 +315,13 @@ Image& Image::fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint3
   std::complex<double>* img = new std::complex<double>[ph*pw];
   for(uint32_t i=0; i<ph; ++i) {
     for(uint32_t j=0; j<pw; ++j) {
-      uint32_t r = i<h ? i : (i<h+ker_h/2 ? h-1 : 0);
-      uint32_t c = j<w ? j : (j<w+ker_w/2 ? w-1 : 0);
+      uint32_t r = i<h ? i : (i<h+cr ? h-1 : 0);
+      uint32_t c = j<w ? j : (j<w+cc ? w-1 : 0);
       img[i*pw+j] = std::complex<double>(data[(r*w+c)*channels+channel],0);
     }
   }
   std::complex<double>* _ker = new std::complex<double>[ph*pw];
-  for(int i=-(int)ker_h/2; i<=(int)ker_h/2; ++i) {
-    for(int j=-(int)ker_w/2; j<=(int)ker_w/2; ++j) {
-      uint32_t r = i<0 ? i+ph : i;
-      uint32_t c = j<0 ? j+pw : j;
-      _ker[r*pw+c] = std::complex<double>(ker[(i+ker_h/2)*ker_w+(j+ker_w/2)],0);
-    }
-  }
+  pad_kernel(ker_w, ker_h, ker, cr, cc, _ker);
 
   std::complex<double>* imgFD = new std::complex<double>[ph*pw];
   std::complex<double>* kerFD = new std::complex<double>[ph*pw];
@@ -358,29 +354,29 @@ Image& Image::fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint3
   return *this;
 }
 
-Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   uint8_t new_data[w*h];
-  uint64_t center = ker_w*ker_h/2;
+  uint64_t center = cr*ker_w + cc;
   for(uint64_t k=channel; k<size; k+=channels) {
     double c = 0;
 
-    for(int i = (int)ker_h/2; i >= -(int)ker_h/2; --i) {
-      long row = ((long)k/channels)/w-i;
+    for(long i = -((long)cr); i < (long)ker_h-cr; ++i) {
+      long row = ((long)k/channels)/w-i; //-i because kernel is flipped as convolved
       if(row < 0) {
         row = row%h + h;
       }
       else if(row > h-1) {
         row %= h;
       }
-      for(int j = (int)ker_w/2; j >= -(int)ker_w/2; --j) {
-        long col = ((long)k/channels)%w-j;
+      for(long j = -((long)cc); j < (long)ker_w-cc; ++j) {
+        long col = ((long)k/channels)%w-j; //-j because kernel is flipped as convolved
         if(col < 0) {
           col = col%w + w;
         }
         else if(col > w-1) {
           col %= w;
         }
-        c += ker[center+i*(int)ker_w+j]*data[(row*w+col)*channels+channel];
+        c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
       }
     }
     new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
@@ -390,7 +386,7 @@ Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_
   }
   return *this;
 }
-Image& Image::fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[]) {
+Image& Image::fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   //TODO: pad to next power of 2 if less than 1024, otherwise pad to multiple of 512 (how to implement this?)
   pw = pow(2, ceil(log2(w+ker_w-1)));
   ph = pow(2, ceil(log2(h+ker_h-1)));
@@ -399,19 +395,13 @@ Image& Image::fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h
   std::complex<double>* img = new std::complex<double>[ph*pw];
   for(uint32_t i=0; i<ph; ++i) {
     for(uint32_t j=0; j<pw; ++j) {
-      uint32_t r = i<h ? i : (i<h+ker_h/2 ? i%h : i-ph+h);
-      uint32_t c = j<w ? j : (j<w+ker_w/2 ? j%w : j-pw+w);
+      uint32_t r = i<h ? i : (i<h+cr ? i%h : i+h-ph);
+      uint32_t c = j<w ? j : (j<w+cc ? j%w : j+w-pw);
       img[i*pw+j] = std::complex<double>(data[(r*w+c)*channels+channel],0);
     }
   }
   std::complex<double>* _ker = new std::complex<double>[ph*pw];
-  for(int i=-(int)ker_h/2; i<=(int)ker_h/2; ++i) {
-    for(int j=-(int)ker_w/2; j<=(int)ker_w/2; ++j) {
-      uint32_t r = i<0 ? i+ph : i;
-      uint32_t c = j<0 ? j+pw : j;
-      _ker[r*pw+c] = std::complex<double>(ker[(i+ker_h/2)*ker_w+(j+ker_w/2)],0);
-    }
-  }
+  pad_kernel(ker_w, ker_h, ker, cr, cc, _ker);
 
   std::complex<double>* imgFD = new std::complex<double>[ph*pw];
   std::complex<double>* kerFD = new std::complex<double>[ph*pw];
