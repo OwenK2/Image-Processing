@@ -1,4 +1,5 @@
-CC			:= g++
+CC				:= g++
+CC2				:= gcc
 TARGET		:= "ImageProcessing"
 BUILDDIR	:= build
 SRCDIR		:= src
@@ -6,6 +7,7 @@ CFLAGS		:= -std=c++17 -g
 SRCEXT		:= cpp
 SOURCES 	:= $(wildcard $(SRCDIR)/*.$(SRCEXT))
 OBJECTS		:= $(patsubst $(SRCDIR)/%, $(BUILDDIR)/%, $(SOURCES:.$(SRCEXT)=.o))
+
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
 	@printf "\e[33m\e[1mBuilding...\e[0m\n";

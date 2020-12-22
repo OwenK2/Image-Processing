@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <complex>
 #include <cmath>
+#include "schrift.h"
+
 #define _USE_MATH_DEFINES //legacy feature of C
 
 #define STEG_HEADER_SIZE sizeof(uint32_t) * 8
@@ -16,6 +18,8 @@ enum ImageType {
 	TGA
 };
 
+struct Font;
+
 struct Image {
 	uint8_t* data = NULL;
 	
@@ -25,8 +29,8 @@ struct Image {
 	size_t size = 0; //w*h*channels
 
 	uint32_t ph; //padded pixel height (no channels), changes depending on size of kernel being convolved on image
-  	uint32_t pw; //padded pixel width (no channels), changes depending on size of kernel being convolved on image
-  	uint64_t psize; //padded pixel size (no channels), changes depending on size of kernel being convolved on image
+  uint32_t pw; //padded pixel width (no channels), changes depending on size of kernel being convolved on image
+  uint64_t psize; //padded pixel size (no channels), changes depending on size of kernel being convolved on image
 	
 	Image(const char* filename, int channelForce = 0);
 	Image(int w, int h, int channels = 3);
@@ -86,8 +90,37 @@ struct Image {
 
 
 
+	Image& flipX();
+	Image& flipY();
+
+
+	Image& overlay(const Image& img, int x, int y);
+	Image& overlayText(const char* text, const Font& font, int x, int y, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255, uint8_t a = 255);
+
+	Image& resize(uint16_t nw, uint16_t nh);
+	Image& resizeNN(uint16_t nw, uint16_t nh);
 
 
 
 	void debug();
 };
+
+// For details about the format:
+// https://developer.apple.com/fonts/TrueType-Reference-Manual/
+struct Font {
+	SFT sft = {NULL, 12, 12, 0, 0, SFT_DOWNWARD_Y|SFT_RENDER_IMAGE};
+	Font(const char* filepath, uint16_t size) {
+	  if((sft.font = sft_loadfile(filepath)) == NULL) {
+	    printf("\e[31m[ERROR] Failed to load %s\e[0m\n", filepath);
+	  }
+	  setSize(size);
+	};
+	~Font() {
+		sft_freefont(sft.font);
+	}
+	void setSize(uint16_t size) {
+		sft.xScale = size;
+		sft.yScale = size;
+	}
+};
+

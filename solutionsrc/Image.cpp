@@ -1,6 +1,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define BYTE_BOUND(value) value < 0 ? 0 : (value > 255 ? 255 : value)
+
+
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include "Image.h"
@@ -640,3 +642,205 @@ Image& Image::grainAdjust(uint8_t level) {
   return *this;
 }
 
+
+Image& Image::flipX() { 
+  uint8_t tmp[4];
+  uint8_t* px1;
+  uint8_t* px2;
+  for(int y = 0;y < h;++y) {
+    for(int x = 0;x < w/2;++x) {
+      px1 = &data[(y * w + x) * channels];
+      px2 = &data[(y * w + (w - 1 - x)) * channels];
+      memcpy(tmp, px1, channels);
+      memcpy(px1, px2, channels);
+      memcpy(px2, tmp, channels);
+    }
+  }
+  return *this;
+}
+Image& Image::flipY() {
+  uint8_t tmp[4];
+  uint8_t* px1;
+  uint8_t* px2;
+  for(int x = 0;x < w;++x) {
+    for(int y = 0;y < h/2;++y) {
+      px1 = &data[(y * w + x) * channels];
+      px2 = &data[((h - 1 - y) * w + x) * channels];
+      memcpy(tmp, px1, channels);
+      memcpy(px1, px2, channels);
+      memcpy(px2, tmp, channels);
+    }
+  }
+  return *this;
+}
+
+
+Image& Image::overlay(const Image& img, int offsetX, int offsetY) {
+  uint8_t* srcPx;
+  uint8_t* dstPx;
+  uint8_t* alpha;
+  for(int y = 0;y < img.h;++y) {
+    if(y + offsetY < 0) {continue;}
+    else if(y + offsetY >= h) {break;}
+
+    for(int x = 0;x < img.w;++x) {
+      if(x + offsetX < 0) {continue;}
+      else if(x + offsetX >= w) {break;}
+      dstPx = &data[(w * (y + offsetY) + (x + offsetX)) * channels];
+      srcPx = &img.data[(img.w * y + x) * img.channels];
+
+      float dstAlpha = channels < 4 ? 1 : dstPx[3] / 255.f; 
+      float srcAlpha = img.channels < 4 ? 1 : srcPx[3] / 255.f;
+      if(dstAlpha > .9999 && srcAlpha > .9999) {
+        if(img.channels >= channels) {
+          memcpy(dstPx, srcPx, channels);
+        }
+        else {
+          memset(dstPx, srcPx[0], channels);
+        }
+      }
+      else if(srcAlpha > 0) {
+        float outAlpha = dstAlpha * (1 - srcAlpha) + srcAlpha;
+        if(outAlpha == 0) {
+          memset(dstPx, 0, channels);
+        }
+        else {
+          for(uint8_t chnl = 0;chnl < channels;++chnl) {
+            dstPx[chnl] = (uint8_t)BYTE_BOUND((srcPx[chnl]/255.f * srcAlpha + dstPx[chnl]/255.f * dstAlpha * (1 - srcAlpha)) / outAlpha * 255);
+          }
+          if(channels > 3) {dstPx[3] = (uint8_t)(outAlpha * 255);}
+        }
+        
+      }
+    }
+  }
+  return *this;
+}
+
+Image& Image::overlayText(const char* text, const Font& font, int offsetX, int offsetY, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+  size_t len = strlen(text);
+  SFT_Char c;
+  double kerning[2] = {0};
+  for(size_t i = 0;i < len;++i) {
+    if(sft_char(&font.sft, text[i], &c) != 0) {
+      printf("\e[31m[ERROR]Failed to get character '%c' (%d)\e[0m\n", text[i], text[i]);
+      continue;
+    }
+    if(i > 0 && sft_kerning(&font.sft, text[i-1], text[i], kerning) != 0) {kerning[0] = 0;kerning[1] = 0;}
+
+    // printf("\e[36mDrawing \e[1m'%c'\e[0m: %3d %3d, Off: %3d %3d, Adv: %f, Kerning: %3f %3f\n", text[i], c.width, c.height, c.x, c.y, c.advance, kerning[0], kerning[1]);
+
+
+    int32_t dx, dy;
+    uint8_t srcPx;
+    uint8_t* dstPx;
+    uint8_t color[4] = {r, g, b, a};
+    for(uint16_t y = 0;y < c.height;++y) {
+      dy = y + offsetY + (int)kerning[1] + c.y;
+      if(dy < 0) {continue;}
+      else if(dy >= h) {break;}
+      for(uint16_t x = 0;x < c.width;++x) {
+        dx = x + offsetX + (int)kerning[0] + c.x;
+        if(dx < 0) {continue;}
+        else if(dx >= w) {break;}
+        srcPx = c.image[y * c.width + x];
+        dstPx = &data[(dy * w + dx) * channels];
+        if(srcPx != 0) { 
+          if(srcPx == 255 && a == 255) {
+            memcpy(dstPx, color, channels);
+          } 
+          else {
+            float srcAlpha = (srcPx / 255.f) * (a / 255.f);
+            float dstAlpha = channels < 4 ? 1.f : dstPx[3] / 255.f;
+            float outAlpha = dstAlpha * (1 - srcAlpha) + srcAlpha;
+            if(outAlpha == 0) {
+              memset(dstPx, 0, channels);
+            }
+            else {
+              for(uint8_t chnl = 0;chnl < channels;++chnl) {
+                dstPx[chnl] = (uint8_t)BYTE_BOUND((color[chnl]/255.f * srcAlpha + dstPx[chnl]/255.f * dstAlpha * (1 - srcAlpha)) / outAlpha * 255);
+              }
+              if(channels > 3) {dstPx[3] = (uint8_t)(outAlpha * 255);}
+            }
+          }
+        }
+      }
+    }
+    offsetX += c.advance;
+    free(c.image);
+  }
+  return *this;
+}
+
+float lerp(uint8_t s, uint8_t e, float t) {return s+(e-s)*t;}
+#define blerp(c00, c01, c10, c11, tx, ty) (lerp(lerp(c00, c01, tx), lerp(c10, c11, tx), ty))
+
+Image& Image::resize(uint16_t nw, uint16_t nh) {
+  uint8_t* newData = new uint8_t[nw*nh*channels];
+
+  float xScale = (float)nw / (w - 1);
+  float yScale = (float)nh / (h - 1);
+
+  float sx, sy, alpha, finalAlpha;
+  uint16_t sxi, syi;
+  uint8_t* c00, *c01, *c10, *c11;
+  
+  for(uint16_t y = 0;y < nh;++y) {
+    sy = (y / yScale);
+    syi = (uint16_t)sy;
+    for(uint16_t x = 0;x < nw;++x) {
+      sx = (x / xScale);
+      sxi = (uint16_t)sx;
+      c00 = &data[(sxi + syi * w) * channels];
+      c01 = &data[(1 + sxi + syi * w) * channels];
+      c10 = &data[(sxi + (syi + 1) * w) * channels];
+      c11 = &data[(1 + sxi + (syi + 1) * w) * channels];
+
+      alpha = 1;
+      finalAlpha = 1;
+      for(int8_t chnl = channels-1;chnl > -1;--chnl) {
+
+        newData[(x + y * nw)*channels + chnl] = finalAlpha > 0 ? (uint8_t)BYTE_BOUND(blerp(c00[chnl]*alpha, c01[chnl]*alpha, c10[chnl]*alpha, c11[chnl]*alpha, sx - sxi, sy - syi) / finalAlpha) : 0;
+        if(chnl == 3) {
+          finalAlpha = newData[(x + y * nw)*channels + chnl] / 255.f;
+        }
+      }
+    }
+  }
+
+  // Fix image buffer
+  w = nw;
+  h = nh;
+  size = w * h * channels;
+  delete[] data;
+  data = newData;
+
+  return *this;
+}
+
+
+Image& Image::resizeNN(uint16_t nw, uint16_t nh) {
+  uint8_t* newData = new uint8_t[nw*nh*channels];
+
+  float xScale = (float)nw / (w - 1);
+  float yScale = (float)nh / (h - 1);
+
+  uint16_t sx, sy;
+  
+  for(uint16_t y = 0;y < nh;++y) {
+    sy = (uint16_t)(y / yScale);
+    for(uint16_t x = 0;x < nw;++x) {
+      sx = (uint16_t)(x / xScale);
+      memcpy(&newData[(x + y * nw) * channels], &data[(sx + sy * w) * channels], channels);
+    }
+  }
+
+  // Fix image buffer
+  w = nw;
+  h = nh;
+  size = w * h * channels;
+  delete[] data;
+  data = newData;
+
+  return *this;
+}
