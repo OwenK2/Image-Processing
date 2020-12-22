@@ -5,15 +5,16 @@
 #include "stb_image_write.h"
 #include "Image.h"
 
-Image::Image(const char* filename, int channelForce) {
-  if(!read(filename, channelForce)) {
-    printf("Failed to read %s\n", filename);
-  }
-  else {
-  	size = w*h*channels;
+Image::Image(const char* filename, int channel_force) {
+  if(read(filename, channel_force)) {
+    printf("Read %s\n", filename);
+    size = w*h*channels;
     pw = pow(2, ceil(log2(w)));
     ph = pow(2, ceil(log2(h)));
     psize = pw*ph;
+  }
+  else {
+    printf("Failed to read %s\n", filename);
   }
 }
 Image::Image(int w, int h, int channels) : w(w), h(h), channels(channels), pw(pow(2, ceil(log2(w)))), ph(pow(2, ceil(log2(h)))) {
@@ -32,15 +33,14 @@ Image::~Image() {
 
 
 
-bool Image::read(const char* filename, int channelForce) {
-  data = stbi_load(filename, &w, &h, &channels, channelForce);
-  channels = channelForce == 0 ? channels : channelForce;
+bool Image::read(const char* filename, int channel_force) {
+  data = stbi_load(filename, &w, &h, &channels, channel_force);
+  channels = channel_force == 0 ? channels : channel_force;
   return data != NULL;
 }
 
 bool Image::write(const char* filename) {
 	ImageType type = get_file_type(filename);
-	printf("\e[32mWrote \e[36m%s\e[0m, %d, %d, %d, %zu\n", filename, w, h, channels, size);
   int success;
   switch (type) {
     case PNG:
@@ -56,7 +56,14 @@ bool Image::write(const char* filename) {
       success = stbi_write_tga(filename, w, h, channels, data);
       break;
   }
-  return success != 0;
+  if(success != 0) {
+    printf("\e[32mWrote \e[36m%s\e[0m, %d, %d, %d, %zu\n", filename, w, h, channels, size);
+    return true;
+  }
+  else {
+    printf("\e[31;1m Failed to write \e[36m%s\e[0m, %d, %d, %d, %zu\n", filename, w, h, channels, size);
+    return false;
+  }
 }
 
 ImageType Image::get_file_type(const char* filename) {

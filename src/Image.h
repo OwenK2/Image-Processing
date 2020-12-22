@@ -14,12 +14,12 @@ struct Image {
 	int h;
 	int channels;
 
-	Image(const char* filename);
-	Image(int w, int h, int channels);
+	Image(const char* filename, int channel_force = 0);
+	Image(int w, int h, int channels = 3);
 	Image(const Image& img);
 	~Image();
 
-	bool read(const char* filename);
+	bool read(const char* filename, int channel_force = 0);
 	bool write(const char* filename);
 
 	ImageType get_file_type(const char* filename);
@@ -27,8 +27,11 @@ struct Image {
 	
 
 
-	
+	Image& std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
 
+	Image& std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+
+	Image& std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
 
 	
 	Image& diffmap(Image& img);
@@ -46,8 +49,6 @@ struct Image {
 
 
 };
-
-
 
 
 

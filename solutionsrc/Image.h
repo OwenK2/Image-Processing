@@ -34,7 +34,7 @@ struct Image {
 	~Image();
 
 
-	bool read(const char* filename, int channelForce = 0);
+	bool read(const char* filename, int channel_force = 0);
 	bool write(const char* filename);
 
 	ImageType get_file_type(const char* filename);
