@@ -27,10 +27,6 @@ struct Image {
 	int h; //height
 	int channels; //channels
 	size_t size = 0; //w*h*channels
-
-	uint32_t ph; //padded pixel height (no channels), changes depending on size of kernel being convolved on image
-  	uint32_t pw; //padded pixel width (no channels), changes depending on size of kernel being convolved on image
-  	uint64_t psize; //padded pixel size (no channels), changes depending on size of kernel being convolved on image
 	
 	Image(const char* filename, int channelForce = 0);
 	Image(int w, int h, int channels = 3);
@@ -44,25 +40,12 @@ struct Image {
 	ImageType get_file_type(const char* filename);
 
 
-	static std::complex<double>* recursive_fft(uint32_t n, std::complex<double> x[], std::complex<double>* X, bool inverse);
-	static std::complex<double>* dft(uint32_t m, uint32_t n, std::complex<double> y[], std::complex<double>* Y);
-	static std::complex<double>* idft(uint32_t m, uint32_t n, std::complex<double> Y[], std::complex<double>* y);
+	
 
-	static std::complex<double>* pointwise_mult(uint64_t len, std::complex<double> a[], std::complex<double> b[], std::complex<double>* p);
-
-	std::complex<double>* pad_kernel(uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cx, uint32_t cy, std::complex<double>* pad_ker);
-
-	void fd_conv_helper(std::complex<double> img[], uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-
-	//TODO: add convolve function that chooses from the following based on image and kernel size
+	
 	Image& std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-	Image& fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-
 	Image& std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-	Image& fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-
 	Image& std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-	Image& fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
 
 	
 	Image& gaussian_blur();
