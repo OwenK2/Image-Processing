@@ -2,9 +2,11 @@
 #include <stdint.h>
 #include <cstring>
 #include <cstdio>
-#include <algorithm>
 #include <complex>
 #include <cmath>
+
+#include "schrift.h"
+
 #define _USE_MATH_DEFINES //legacy feature of C
 
 #define STEG_HEADER_SIZE sizeof(uint32_t) * 8
@@ -15,6 +17,8 @@ enum ImageType {
 	BMP,
 	TGA
 };
+
+struct Font;
 
 struct Image {
 	uint8_t* data = NULL;
@@ -47,6 +51,8 @@ struct Image {
 	static std::complex<double>* pointwise_mult(uint64_t len, std::complex<double> a[], std::complex<double> b[], std::complex<double>* p);
 
 	std::complex<double>* pad_kernel(uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cx, uint32_t cy, std::complex<double>* pad_ker);
+
+	void fd_conv_helper(std::complex<double> img[], uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
 
 	//TODO: add convolve function that chooses from the following based on image and kernel size
 	Image& std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
@@ -86,8 +92,37 @@ struct Image {
 
 
 
+	Image& flipX();
+	Image& flipY();
+
+
+	Image& overlay(const Image& img, int x, int y);
+	Image& overlayText(const char* text, const Font& font, int x, int y, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255, uint8_t a = 255);
+
+	Image& resize(uint16_t nw, uint16_t nh);
+	Image& resizeNN(uint16_t nw, uint16_t nh);
 
 
 
 	void debug();
 };
+
+// For details about the format:
+// https://developer.apple.com/fonts/TrueType-Reference-Manual/
+struct Font {
+	SFT sft = {NULL, 12, 12, 0, 0, SFT_DOWNWARD_Y|SFT_RENDER_IMAGE};
+	Font(const char* filepath, uint16_t size) {
+	  if((sft.font = sft_loadfile(filepath)) == NULL) {
+	    printf("\e[31m[ERROR] Failed to load %s\e[0m\n", filepath);
+	  }
+	  setSize(size);
+	};
+	~Font() {
+		sft_freefont(sft.font);
+	}
+	void setSize(uint16_t size) {
+		sft.xScale = size;
+		sft.yScale = size;
+	}
+};
+
