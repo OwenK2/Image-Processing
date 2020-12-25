@@ -1,25 +1,43 @@
 #include "Image.h"
 
 #include <cstdlib>
+#include <chrono>
 
 int main(int argc, char** argv) {
-	const uint32_t len = 8;
+	const uint32_t len = 2048;
 	std::complex<double>* a = new std::complex<double>[len];
 	for(uint32_t i=0; i<len; ++i) {
 		a[i] = std::complex<double>(rand()%100, rand()%100);
-		printf("%f+%fj, ", a[i].real(), a[i].imag());
+		//printf("%f+%fj, ", a[i].real(), a[i].imag());
 	}
-	printf("\n");
+	//printf("\n");
 	std::complex<double>* A = new std::complex<double>[len];
 	std::complex<double>* A2 = new std::complex<double>[len];
+
+
+	auto fft1start = std::chrono::system_clock::now();
 	Image::fft(len, a, A);
-	Image::ifft(len, a, A2);
-	for(uint64_t i=0; i<len; ++i) {
-		printf("dft(%f,%f);  idft(%f,%f)\n", A[i].real(), A[i].imag(), A2[i].real(), A2[i].imag());
-	}
+	auto fft1end = std::chrono::system_clock::now();
+
+	// auto ifft1start = std::chrono::system_clock::now();
+	// Image::ifft(len, a, A2);
+	// auto ifft1end = std::chrono::system_clock::now();
+	
+	
+
+	// for(uint64_t i=0; i<len; ++i) {
+	// 	printf("dft(%f,%f);  idft(%f,%f)\n", A[i].real(), A[i].imag(), A2[i].real(), A2[i].imag());
+	// }
+
+	
+	printf("%lld\n", std::chrono::duration_cast<std::chrono::nanoseconds>(fft1end-fft1start).count());
+	//printf("%lld\n", std::chrono::duration_cast<std::chrono::nanoseconds>(ifft1end-ifft1start).count());
+
 
 	delete[] a;
 	delete[] A;
+	delete[] A2;
+
 
 
 

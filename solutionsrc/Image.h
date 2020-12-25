@@ -45,6 +45,9 @@ struct Image {
 	static void fft(uint32_t n, std::complex<double> x[], std::complex<double>* X);
 	static void ifft(uint32_t n, std::complex<double> X[], std::complex<double>* x);
 
+	static void fftV2(uint32_t n, std::complex<double> x[], std::complex<double>* X);
+	static void ifftV2(uint32_t n, std::complex<double> X[], std::complex<double>* x);
+
 	static void recursive_fft(uint64_t n, std::complex<double> p[], std::complex<double>* q, bool inverse);
 
 	

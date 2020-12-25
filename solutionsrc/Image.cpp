@@ -2,7 +2,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define BYTE_BOUND(value) value < 0 ? 0 : (value > 255 ? 255 : value)
 
-
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include "Image.h"
@@ -100,104 +99,51 @@ void Image::bit_rev(uint32_t n, std::complex<double> a[], std::complex<double>* 
 }
 
 void Image::fft(uint32_t n, std::complex<double> x[], std::complex<double>* X) {
-  // bit_rev(n, x, X);
-  // //memcpy(X, x, n*sizeof(std::complex<double>));
+  //bit_rev(n, x, X);
+  memcpy(X, x, n*sizeof(std::complex<double>));
 
-  // uint8_t log2n = (uint8_t)log2(n);
-  // uint32_t m;
-  // std::complex<double> w_m;
-  // std::complex<double> w;
-  // std::complex<double> u, t;
-  // for(uint8_t s=1; s<=log2n; ++s) {
-  //   m = (1<<s);
-  //   w_m = std::complex<double>(cos(-2*M_PI/m), sin(-2*M_PI/m));
-  //   for(uint32_t k=0; k<n; k+=m) {
-  //     w = std::complex<double>(1,0);
-  //     for(uint32_t j=0; j<(m>>1); ++j) {
-  //       t = w*X[k+j+(m>>1)];
-  //       u = X[k+j];
-  //       X[k+j] = u+t;
-  //       X[k+j+(m>>1)] = u-t;
-  //       w *= w_m;
-  //     }
-  //   }
-  // }
-
-  bit_rev(n, x, X);
-  //memcpy(X, x, n*sizeof(std::complex<double>));
-
-  std::complex<double> w[n/2];
-  double theta;
-  double dTheta = -2*M_PI/n;
-  uint32_t i;
-  for(i=0,theta=0; i<n/2; ++i, theta+=dTheta) {
-    w[i] = std::complex<double>(cos(theta), sin(theta));
-  }
-  
+  uint8_t log2n = (uint8_t)log2(n);
+  uint32_t m;
+  std::complex<double> w_m;
+  std::complex<double> w;
   std::complex<double> u, t;
-  for(uint32_t m=1; m<n; m<<=1) {
-    uint32_t w_step = n/(m<<1);
-    for(uint32_t k=0; k<n; k+=(m<<1)) {
-      for(uint16_t j=0; j<m; ++j) {
+  for(uint8_t s=1; s<=log2n; ++s) {
+    m = (1<<s);
+    w_m = std::complex<double>(cos(-2*M_PI/m), sin(-2*M_PI/m));
+    for(uint32_t k=0; k<n; k+=m) {
+      w = std::complex<double>(1,0);
+      for(uint32_t j=0; j<(m>>1); ++j) {
+        t = w*X[k+j+(m>>1)];
         u = X[k+j];
-        t = w[j*w_step]*X[k+j+m];
         X[k+j] = u+t;
-        X[k+j+m] = u-t;
+        X[k+j+(m>>1)] = u-t;
+        w *= w_m;
       }
     }
   }
 }
-
 void Image::ifft(uint32_t n, std::complex<double> X[], std::complex<double>* x) {
-  // bit_rev(n, X, x);
-  // //memcpy(x, X, n*sizeof(std::complex<double>));
+  //bit_rev(n, X, x);
+  memcpy(x, X, n*sizeof(std::complex<double>));
 
-  // uint8_t log2n = (uint8_t)log2(n);
-  // uint32_t m;
-  // std::complex<double> w_m;
-  // std::complex<double> w;
-  // std::complex<double> u, t;
-  // for(uint8_t s=1; s<=log2n; ++s) {
-  //   m = (1<<s);
-  //   w_m = std::complex<double>(cos(2*M_PI/m), sin(2*M_PI/m));
-  //   for(uint32_t k=0; k<n; k+=m) {
-  //     w = std::complex<double>(1,0);
-  //     for(uint32_t j=0; j<(m>>1); ++j) {
-  //       t = w*x[k+j+(m>>1)];
-  //       u = [k+j];
-  //       x[k+j] = u+t;
-  //       x[k+j+(m>>1)] = u-t;
-  //       w *= w_m;
-  //     }
-  //   }
-  // }
-
-  bit_rev(n, X, x);
-  //memcpy(x, X, n*sizeof(std::complex<double>));
-
-  std::complex<double> w[n/2];
-  double theta;
-  double dTheta = 2*M_PI/n;
-  uint32_t i;
-  for(i=0,theta=0; i<n/2; ++i, theta+=dTheta) {
-    w[i] = std::complex<double>(cos(theta), sin(theta));
-  }
-  
+  uint8_t log2n = (uint8_t)log2(n);
+  uint32_t m;
+  std::complex<double> w_m;
+  std::complex<double> w;
   std::complex<double> u, t;
-  for(uint32_t m=1; m<n; m<<=1) {
-    uint32_t w_step = n/(m<<1);
-    for(uint32_t k=0; k<n; k+=(m<<1)) {
-      for(uint16_t j=0; j<m; ++j) {
+  for(uint8_t s=1; s<=log2n; ++s) {
+    m = (1<<s);
+    w_m = std::complex<double>(cos(2*M_PI/m), sin(2*M_PI/m));
+    for(uint32_t k=0; k<n; k+=m) {
+      w = std::complex<double>(1,0);
+      for(uint32_t j=0; j<(m>>1); ++j) {
+        t = w*x[k+j+(m>>1)];
         u = x[k+j];
-        t = w[j*w_step]*x[k+j+m];
         x[k+j] = u+t;
-        x[k+j+m] = u-t;
+        x[k+j+(m>>1)] = u-t;
+        w *= w_m;
       }
     }
-  }
-
-  for(i=0; i<n; ++i) {
-    x[i] /= n;
   }
 }
 
