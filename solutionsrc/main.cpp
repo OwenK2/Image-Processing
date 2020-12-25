@@ -1,36 +1,65 @@
 #include "Image.h"
 
+#include <cstdlib>
+
 int main(int argc, char** argv) {
-	Image test("imgs/test1.jpg");
-
-	// double ker[] = {-2/9.0, -1/9.0, 0, -1/9.0, 1/9.0, 1/9.0, 0, 1/9.0, 2/9.0}; //emboss
-	double ker[] = {1/16.0, 2/16.0, 1/16.0, 2/16.0, 4/16.0, 2/16.0, 1/16.0, 2/16.0, 1/16.0}; //gaussian blur
-	
-	Image cSTD = test;
-	Image cFD = test;
-
-	printf("starting convolutions...\n");
-	cSTD.std_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
-	cSTD.std_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
-	cSTD.std_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
-	printf("halfway!\n");
-	cFD.fd_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
-	cFD.fd_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
-	cFD.fd_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
-	printf("finished convolutions!\n");
-	
-	cSTD.write("imgs/std_conv.png");
-	cFD.write("imgs/fd_conv.png");
-
-
-	Image diff = cSTD;
-	diff.diffmap_scale(cFD);
-	for(uint64_t k=0; k<diff.size; ++k) {
-		if(cSTD.data[k] - cFD.data[k] > 1) { //if difference is less than or equal to 1, we assume rounding error
-			printf("Not matching at index %llu: %d =/= %d\n", k, cSTD.data[k], cFD.data[k]);
-		}
+	const uint32_t len = 8;
+	std::complex<double>* a = new std::complex<double>[len];
+	for(uint32_t i=0; i<len; ++i) {
+		a[i] = std::complex<double>(rand()%100, rand()%100);
+		printf("%f+%fj, ", a[i].real(), a[i].imag());
 	}
-	diff.write("imgs/con_check.png");
+	printf("\n");
+	std::complex<double>* A = new std::complex<double>[len];
+	std::complex<double>* A2 = new std::complex<double>[len];
+	Image::fft(len, a, A);
+	Image::ifft(len, a, A2);
+	for(uint64_t i=0; i<len; ++i) {
+		printf("dft(%f,%f);  idft(%f,%f)\n", A[i].real(), A[i].imag(), A2[i].real(), A2[i].imag());
+	}
+
+	delete[] a;
+	delete[] A;
+
+
+
+
+	// Image test("imgs/test1.jpg");
+
+	// // double ker[] = {-2/9.0, -1/9.0, 0, -1/9.0, 1/9.0, 1/9.0, 0, 1/9.0, 2/9.0}; //emboss
+	// double ker[] = {1/16.0, 2/16.0, 1/16.0, 2/16.0, 4/16.0, 2/16.0, 1/16.0, 2/16.0, 1/16.0}; //gaussian blur
+	
+	// Image cSTD = test;
+	// Image cFD = test;
+
+	// printf("starting convolutions...\n");
+	// cSTD.std_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
+	// cSTD.std_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
+	// cSTD.std_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
+	// printf("halfway!\n");
+	// cFD.fd_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
+	// cFD.fd_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
+	// cFD.fd_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
+	// printf("finished convolutions!\n");
+	
+	// cSTD.write("imgs/std_conv.png");
+	// cFD.write("imgs/fd_conv.png");
+
+
+	// Image diff = cSTD;
+	// diff.diffmap_scale(cFD);
+	// for(uint64_t k=0; k<diff.size; ++k) {
+	// 	if(cSTD.data[k] - cFD.data[k] > 1) { //if difference is less than or equal to 1, we assume rounding error
+	// 		printf("Not matching at index %llu: %d =/= %d\n", k, cSTD.data[k], cFD.data[k]);
+	// 	}
+	// }
+	// diff.write("imgs/con_check.png");
+
+
+
+
+
+
 
 	// Image test("test.jpg");
 

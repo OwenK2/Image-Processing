@@ -39,8 +39,13 @@ struct Image {
 
 	ImageType get_file_type(const char* filename);
 
-
+	static uint32_t rev(uint32_t n, uint32_t a);
+	static void bit_rev(uint32_t n, std::complex<double> a[], std::complex<double>* A);
 	
+	static void fft(uint32_t n, std::complex<double> x[], std::complex<double>* X);
+	static void ifft(uint32_t n, std::complex<double> X[], std::complex<double>* x);
+
+	static void recursive_fft(uint64_t n, std::complex<double> p[], std::complex<double>* q, bool inverse);
 
 	
 	Image& std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
@@ -48,7 +53,7 @@ struct Image {
 	Image& std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
 
 	
-	Image& gaussian_blur();
+	
 
 
 
@@ -83,7 +88,7 @@ struct Image {
 	Image& overlayText(const char* text, const Font& font, int x, int y, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255, uint8_t a = 255);
 
 	Image& resize(uint16_t nw, uint16_t nh);
-	Image& resizeNN(uint16_t nw, uint16_t nh);
+	Image& resizeNN(uint16_t nw, uint16_t nh); //nearest neighbor
 
 
 
