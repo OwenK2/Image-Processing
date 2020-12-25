@@ -1,14 +1,16 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define BYTE_BOUND(value) value < 0 ? 0 : (value > 255 ? 255 : value)
-#include "Image.h"
+
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include "Image.h"
 
 
-Image::Image(const char* filename) {
-	if(read(filename)) {
+
+Image::Image(const char* filename, int channel_force) {
+	if(read(filename, channel_force)) {
 		printf("Read %s\n", filename);
 		size = w*h*channels;
 	}
@@ -30,8 +32,9 @@ Image::~Image() {
 	stbi_image_free(data);
 }
 
-bool Image::read(const char* filename) {
-	data = stbi_load(filename, &w, &h, &channels, 0);
+bool Image::read(const char* filename, int channel_force) {
+	data = stbi_load(filename, &w, &h, &channels, channel_force);
+	channels = channel_force == 0 ? channels : channel_force;
 	return data != NULL;
 }
 
@@ -52,7 +55,14 @@ bool Image::write(const char* filename) {
       success = stbi_write_tga(filename, w, h, channels, data);
       break;
   }
-  return success != 0;
+  if(success != 0) {
+    printf("\e[32mWrote \e[36m%s\e[0m, %d, %d, %d, %zu\n", filename, w, h, channels, size);
+    return true;
+  }
+  else {
+    printf("\e[31;1m Failed to write \e[36m%s\e[0m, %d, %d, %d, %zu\n", filename, w, h, channels, size);
+    return false;
+  }
 }
 
 ImageType Image::get_file_type(const char* filename) {
@@ -77,6 +87,100 @@ ImageType Image::get_file_type(const char* filename) {
 
 
 
+
+
+
+Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
+	uint8_t new_data[w*h];
+	uint64_t center = cr*ker_w + cc;
+	for(uint64_t k=channel; k<size; k+=channels) {
+		double c = 0;
+		for(long i = -((long)cr); i<(long)ker_h-cr; ++i) {
+			long row = ((long)k/channels)/w-i;
+			if(row < 0 || row > h-1) {
+				continue;
+			}
+			for(long j = -((long)cc); j<(long)ker_w-cc; ++j) {
+				long col = ((long)k/channels)%w-j;
+				if(col < 0 || col > w-1) {
+					continue;
+				}
+				c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
+			}
+		}
+		new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
+	}
+	for(uint64_t k=channel; k<size; k+=channels) {
+		data[k] = new_data[k/channels];
+	}
+	return *this;
+}
+
+
+Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
+	uint8_t new_data[w*h];
+	uint64_t center = cr*ker_w + cc;
+	for(uint64_t k=channel; k<size; k+=channels) {
+		double c = 0;
+		for(long i = -((long)cr); i<(long)ker_h-cr; ++i) {
+			long row = ((long)k/channels)/w-i;
+			if(row < 0) {
+				row = 0;
+			}
+			else if(row > h-1) {
+				row = h-1;
+			}
+			for(long j = -((long)cc); j<(long)ker_w-cc; ++j) {
+				long col = ((long)k/channels)%w-j;
+				if(col < 0) {
+					col = 0;
+				}
+				else if(col > w-1) {
+					col = w-1;
+				}
+				c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
+			}
+		}
+		new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
+	}
+	for(uint64_t k=channel; k<size; k+=channels) {
+		data[k] = new_data[k/channels];
+	}
+	return *this;
+}
+
+
+Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
+	uint8_t new_data[w*h];
+	uint64_t center = cr*ker_w + cc;
+	for(uint64_t k=channel; k<size; k+=channels) {
+		double c = 0;
+		for(long i = -((long)cr); i<(long)ker_h-cr; ++i) {
+			long row = ((long)k/channels)/w-i;
+			if(row < 0) {
+				row = row%h + h;
+			}
+			else if(row > h-1) {
+				row %= h;
+			}
+			for(long j = -((long)cc); j<(long)ker_w-cc; ++j) {
+				long col = ((long)k/channels)%w-j;
+				if(col < 0) {
+					col = col%w + w;
+				}
+				else if(col > w-1) {
+					col %= w;
+				}
+				c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
+			}
+		}
+		new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
+	}
+	for(uint64_t k=channel; k<size; k+=channels) {
+		data[k] = new_data[k/channels];
+	}
+	return *this;
+}
 
 
 
@@ -207,38 +311,38 @@ Image& Image::decodeMessage(char* buffer, size_t* messageLength) {
 
 
 
-	Image& Image::flipX() {
-		uint8_t tmp[4];
-		uint8_t* px1;
-		uint8_t* px2;
-		for(int y = 0;y < h;++y) {
-			for(int x = 0;x < w/2;++x) {
-				px1 = &data[(x + y * w) * channels];
-				px2 = &data[((w - 1 - x) + y * w) * channels];
-
-				memcpy(tmp, px1, channels);
-				memcpy(px1, px2, channels);
-				memcpy(px2, tmp, channels);
-			}
+Image& Image::flipX() {
+	uint8_t tmp[4];
+	uint8_t* px1;
+	uint8_t* px2;
+	for(int y = 0;y < h;++y) {
+		for(int x = 0;x < w/2;++x) {
+			px1 = &data[(x + y * w) * channels];
+			px2 = &data[((w - 1 - x) + y * w) * channels];
+			
+			memcpy(tmp, px1, channels);
+			memcpy(px1, px2, channels);
+			memcpy(px2, tmp, channels);
 		}
-		return *this;
 	}
-	Image& Image::flipY() {
-		uint8_t tmp[4];
-		uint8_t* px1;
-		uint8_t* px2;
-		for(int x = 0;x < w;++x) {
-			for(int y = 0;y < h/2;++y) {
-				px1 = &data[(x + y * w) * channels];
-				px2 = &data[(x + (h - 1 - y) * w) * channels];
+	return *this;
+}
+Image& Image::flipY() {
+	uint8_t tmp[4];
+	uint8_t* px1;
+	uint8_t* px2;
+	for(int x = 0;x < w;++x) {
+		for(int y = 0;y < h/2;++y) {
+			px1 = &data[(x + y * w) * channels];
+			px2 = &data[(x + (h - 1 - y) * w) * channels];
 
-				memcpy(tmp, px1, channels);
-				memcpy(px1, px2, channels);
-				memcpy(px2, tmp, channels);
-			}
+			memcpy(tmp, px1, channels);
+			memcpy(px1, px2, channels);
+			memcpy(px2, tmp, channels);
 		}
-		return *this;
 	}
+	return *this;
+}
 
 
 
@@ -289,7 +393,6 @@ Image& Image::overlay(const Image& source, int x, int y) {
 		}
 
 	}
-
 	return *this;
 }
 
@@ -346,7 +449,6 @@ Image& Image::overlayText(const char* txt, const Font& font, int x, int y, uint8
 		x += c.advance;
 		free(c.image);
 	}
-
 
 	return *this;
 }

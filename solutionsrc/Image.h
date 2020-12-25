@@ -2,9 +2,9 @@
 #include <stdint.h>
 #include <cstring>
 #include <cstdio>
-#include <algorithm>
 #include <complex>
 #include <cmath>
+
 #include "schrift.h"
 
 #define _USE_MATH_DEFINES //legacy feature of C
@@ -27,10 +27,6 @@ struct Image {
 	int h; //height
 	int channels; //channels
 	size_t size = 0; //w*h*channels
-
-	uint32_t ph; //padded pixel height (no channels), changes depending on size of kernel being convolved on image
-  uint32_t pw; //padded pixel width (no channels), changes depending on size of kernel being convolved on image
-  uint64_t psize; //padded pixel size (no channels), changes depending on size of kernel being convolved on image
 	
 	Image(const char* filename, int channelForce = 0);
 	Image(int w, int h, int channels = 3);
@@ -38,32 +34,29 @@ struct Image {
 	~Image();
 
 
-	bool read(const char* filename, int channelForce = 0);
+	bool read(const char* filename, int channel_force = 0);
 	bool write(const char* filename);
 
 	ImageType get_file_type(const char* filename);
 
+	static uint32_t rev(uint32_t n, uint32_t a);
+	static void bit_rev(uint32_t n, std::complex<double> a[], std::complex<double>* A);
+	
+	static void fft(uint32_t n, std::complex<double> x[], std::complex<double>* X);
+	static void ifft(uint32_t n, std::complex<double> X[], std::complex<double>* x);
 
-	static std::complex<double>* recursive_fft(uint32_t n, std::complex<double> x[], std::complex<double>* X, bool inverse);
-	static std::complex<double>* dft(uint32_t m, uint32_t n, std::complex<double> y[], std::complex<double>* Y);
-	static std::complex<double>* idft(uint32_t m, uint32_t n, std::complex<double> Y[], std::complex<double>* y);
+	static void fftV2(uint32_t n, std::complex<double> x[], std::complex<double>* X);
+	static void ifftV2(uint32_t n, std::complex<double> X[], std::complex<double>* x);
 
-	static std::complex<double>* pointwise_mult(uint64_t len, std::complex<double> a[], std::complex<double> b[], std::complex<double>* p);
-
-	std::complex<double>* pad_kernel(uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cx, uint32_t cy, std::complex<double>* pad_ker);
-
-	//TODO: add convolve function that chooses from the following based on image and kernel size
-	Image& std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-	Image& fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-
-	Image& std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-	Image& fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-
-	Image& std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-	Image& fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+	static void recursive_fft(uint64_t n, std::complex<double> p[], std::complex<double>* q, bool inverse);
 
 	
-	Image& gaussian_blur();
+	Image& std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+	Image& std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+	Image& std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+
+	
+	
 
 
 
@@ -98,7 +91,7 @@ struct Image {
 	Image& overlayText(const char* text, const Font& font, int x, int y, uint8_t r = 255, uint8_t g = 255, uint8_t b = 255, uint8_t a = 255);
 
 	Image& resize(uint16_t nw, uint16_t nh);
-	Image& resizeNN(uint16_t nw, uint16_t nh);
+	Image& resizeNN(uint16_t nw, uint16_t nh); //nearest neighbor
 
 	Image& crop(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 

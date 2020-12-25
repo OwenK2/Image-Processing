@@ -2,28 +2,24 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define BYTE_BOUND(value) value < 0 ? 0 : (value > 255 ? 255 : value)
 
-
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include "Image.h"
 
-Image::Image(const char* filename, int channelForce) {
-  if(!read(filename, channelForce)) {
-    printf("Failed to read %s\n", filename);
+Image::Image(const char* filename, int channel_force) {
+  if(read(filename, channel_force)) {
+    printf("Read %s\n", filename);
+    size = w*h*channels;
   }
   else {
-  	size = w*h*channels;
-    pw = pow(2, ceil(log2(w)));
-    ph = pow(2, ceil(log2(h)));
-    psize = pw*ph;
+    printf("Failed to read %s\n", filename);
   }
 }
-Image::Image(int w, int h, int channels) : w(w), h(h), channels(channels), pw(pow(2, ceil(log2(w)))), ph(pow(2, ceil(log2(h)))) {
+Image::Image(int w, int h, int channels) : w(w), h(h), channels(channels) {
 	size = w*h*channels;
-  psize = pw*ph;
 	data = new uint8_t[size];
 }
-Image::Image(const Image& img) : w(img.w), h(img.h), channels(img.channels), size(img.size), pw(img.pw), ph(img.ph), psize(img.psize) {
+Image::Image(const Image& img) : w(img.w), h(img.h), channels(img.channels), size(img.size) {
   data = new uint8_t[size];
   memcpy(data,img.data,size);
 }
@@ -34,15 +30,14 @@ Image::~Image() {
 
 
 
-bool Image::read(const char* filename, int channelForce) {
-  data = stbi_load(filename, &w, &h, &channels, channelForce);
-  channels = channelForce == 0 ? channels : channelForce;
+bool Image::read(const char* filename, int channel_force) {
+  data = stbi_load(filename, &w, &h, &channels, channel_force);
+  channels = channel_force == 0 ? channels : channel_force;
   return data != NULL;
 }
 
 bool Image::write(const char* filename) {
 	ImageType type = get_file_type(filename);
-	printf("\e[32mWrote \e[36m%s\e[0m, %d, %d, %d, %zu\n", filename, w, h, channels, size);
   int success;
   switch (type) {
     case PNG:
@@ -58,7 +53,14 @@ bool Image::write(const char* filename) {
       success = stbi_write_tga(filename, w, h, channels, data);
       break;
   }
-  return success != 0;
+  if(success != 0) {
+    printf("\e[32mWrote \e[36m%s\e[0m, %d, %d, %d, %zu\n", filename, w, h, channels, size);
+    return true;
+  }
+  else {
+    printf("\e[31;1m Failed to write \e[36m%s\e[0m, %d, %d, %d, %zu\n", filename, w, h, channels, size);
+    return false;
+  }
 }
 
 ImageType Image::get_file_type(const char* filename) {
@@ -80,129 +82,72 @@ ImageType Image::get_file_type(const char* filename) {
 	return PNG;
 }
 
-
-
-//doesn't divide for inverse
-std::complex<double>* Image::recursive_fft(uint32_t n, std::complex<double> x[], std::complex<double>* X, bool inverse) {
-  if(n == 1) {
-    X[0] = x[0];
+uint32_t Image::rev(uint32_t n, uint32_t a) {
+  uint8_t max_bits = (uint8_t)log2(n);
+  uint32_t reverse_a = 0;
+  for(uint8_t i=0; i<max_bits; ++i) {
+    if(a & (1<<i)) {
+      reverse_a |= (1<<(max_bits-1-i));
+    }
   }
-  else {
-    //w_n is an nth root of unity
-    std::complex<double>* w = new std::complex<double>[n];
-    for(uint64_t i=0; i<n; ++i) {
-      double theta = inverse ? -2*M_PI*i/n : 2*M_PI*i/n; //inverse decided here
-      w[i] = std::complex<double>(cos(theta), sin(theta));
-    }
-      
-    //decompose x into even indices and odd indices
-    std::complex<double>* x_e = new std::complex<double>[n/2] ; //even
-    std::complex<double>* x_o = new std::complex<double>[n/2]; //odd
-    //get coefficents out of x
-    for(uint64_t i=0; i<n/2; ++i) {
-      x_e[i] = x[2*i];
-      x_o[i] = x[2*i+1];
-    }
-
-    //recursive call
-    std::complex<double>* X_e = new std::complex<double>[n/2];
-    recursive_fft(n/2, x_e, X_e, inverse);
-
-    std::complex<double>* X_o = new std::complex<double>[n/2];
-    recursive_fft(n/2, x_o, X_o, inverse);
-
-    //combine results: X[k] = X_e[k] + w_n^+-k X_o[k]
-    //           X[k+t/2] = X_e[k] - w_n^+-k X_o[k]
-    for(uint64_t k = 0; k < n/2; ++k) {
-      X[k] = X_e[k] + w[k]*X_o[k];
-      X[k+n/2] = X_e[k] - w[k]*X_o[k];
-    }
-    delete[] w;
-    delete[] x_o;
-    delete[] x_e;
-    delete[] X_o;
-    delete[] X_e;
-  }
-  return X;
+  return reverse_a;
 }
-std::complex<double>* Image::dft(uint32_t m, uint32_t n, std::complex<double> y[], std::complex<double>* Y) {
-  for(uint32_t i=0; i<m; ++i) {
-    std::complex<double>* x = new std::complex<double>[n];
-    for(uint32_t e=0; e<n; ++e) {
-      x[e] = y[i*n+e];
-    }
-    std::complex<double>* X = new std::complex<double>[n];
-    recursive_fft(n, x, X, false);
-    delete[] x;
-    for(uint32_t e=0; e<n; ++e) {
-      Y[i*n+e] = X[e];
-    }
-    delete[] X;
+void Image::bit_rev(uint32_t n, std::complex<double> a[], std::complex<double>* A) {
+  for(uint32_t i=0; i<n; ++i) {
+    A[rev(n, i)] = a[i];
   }
-  for(uint32_t j=0; j<n; ++j) {
-    std::complex<double>* x = new std::complex<double>[m];
-    for(uint32_t e=0; e<m; ++e) {
-      x[e] = Y[e*n+j];
-    }
-    std::complex<double>* X = new std::complex<double>[m];
-    recursive_fft(m, x, X, false);
-    delete[] x;
-    for(uint32_t e=0; e<m; ++e) {
-      Y[e*n+j] = X[e];
-    }
-    delete[] X;
-  }
-  return Y;
 }
-std::complex<double>* Image::idft(uint32_t m, uint32_t n, std::complex<double> Y[], std::complex<double>* y) {
-  memset(y, 0, sizeof(std::complex<double>)*m*n);
-  for(uint32_t j=0; j<n; ++j) {
-    std::complex<double>* x = new std::complex<double>[m];
-    for(uint32_t e=0; e<m; ++e) {
-      x[e] = Y[e*n+j];
+
+void Image::fft(uint32_t n, std::complex<double> x[], std::complex<double>* X) {
+  //bit_rev(n, x, X);
+  memcpy(X, x, n*sizeof(std::complex<double>));
+
+  uint8_t log2n = (uint8_t)log2(n);
+  uint32_t m;
+  std::complex<double> w_m;
+  std::complex<double> w;
+  std::complex<double> u, t;
+  for(uint8_t s=1; s<=log2n; ++s) {
+    m = (1<<s);
+    w_m = std::complex<double>(cos(-2*M_PI/m), sin(-2*M_PI/m));
+    for(uint32_t k=0; k<n; k+=m) {
+      w = std::complex<double>(1,0);
+      for(uint32_t j=0; j<(m>>1); ++j) {
+        t = w*X[k+j+(m>>1)];
+        u = X[k+j];
+        X[k+j] = u+t;
+        X[k+j+(m>>1)] = u-t;
+        w *= w_m;
+      }
     }
-    std::complex<double>* X = new std::complex<double>[m];
-    recursive_fft(m, x, X, true);
-    delete[] x;
-    for(uint32_t e=0; e<m; ++e) {
-      y[e*n+j] = X[e]/(double)m;
-    }
-    delete[] X;
   }
-  for(uint32_t i=0; i<m; ++i) {
-    std::complex<double>* x = new std::complex<double>[n];
-    for(uint32_t e=0; e<n; ++e) {
-      x[e] = y[i*n+e];
+}
+void Image::ifft(uint32_t n, std::complex<double> X[], std::complex<double>* x) {
+  //bit_rev(n, X, x);
+  memcpy(x, X, n*sizeof(std::complex<double>));
+
+  uint8_t log2n = (uint8_t)log2(n);
+  uint32_t m;
+  std::complex<double> w_m;
+  std::complex<double> w;
+  std::complex<double> u, t;
+  for(uint8_t s=1; s<=log2n; ++s) {
+    m = (1<<s);
+    w_m = std::complex<double>(cos(2*M_PI/m), sin(2*M_PI/m));
+    for(uint32_t k=0; k<n; k+=m) {
+      w = std::complex<double>(1,0);
+      for(uint32_t j=0; j<(m>>1); ++j) {
+        t = w*x[k+j+(m>>1)];
+        u = x[k+j];
+        x[k+j] = u+t;
+        x[k+j+(m>>1)] = u-t;
+        w *= w_m;
+      }
     }
-    std::complex<double>* X = new std::complex<double>[n];
-    recursive_fft(n, x, X, true);
-    delete[] x;
-    for(uint32_t e=0; e<n; ++e) {
-      y[i*n+e] = X[e]/(double)n;
-    }
-    delete[] X;
   }
-  return y;
 }
 
 
-std::complex<double>* Image::pointwise_mult(uint64_t len, std::complex<double> a[], std::complex<double> b[], std::complex<double>* p) {
-  for(uint64_t k=0; k<len; ++k) {
-    p[k] = a[k]*b[k];
-  }
-  return p;
-}
-
-std::complex<double>* Image::pad_kernel(uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc, std::complex<double>* pad_ker) {
-  for(long i=-((long)cr); i<(long)ker_h-cr; ++i) {
-    for(long j=-((long)cc); j<(long)ker_w-cc; ++j) {
-      uint32_t r = i<0 ? i+ph : i;
-      uint32_t c = j<0 ? j+pw : j;
-      pad_ker[r*pw+c] = std::complex<double>(ker[(i+cr)*ker_w+(j+cc)],0);
-    }
-  }
-  return pad_ker;
-}
 
 //TODO: go through all these functions and see if optimization is possible
 Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
@@ -229,51 +174,6 @@ Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t 
   for(uint64_t k=channel; k<size; k+=channels) {
     data[k] = new_data[k/channels];
   }
-  return *this;
-}
-Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
-  //TODO: pad to next power of 2 if less than 1024, otherwise pad to multiple of 512 (how to implement this?)
-  pw = pow(2, ceil(log2(w+ker_w-1)));
-  ph = pow(2, ceil(log2(h+ker_h-1)));
-  psize = pw*ph;
-
-  std::complex<double>* img = new std::complex<double>[ph*pw];
-  for(uint32_t i=0; i<h; ++i) {
-    for(uint32_t j=0; j<w; ++j) {
-      img[i*pw+j] = std::complex<double>(data[(i*w+j)*channels+channel],0);
-    }
-  }
-  std::complex<double>* _ker = new std::complex<double>[ph*pw];
-  pad_kernel(ker_w, ker_h, ker, cr, cc, _ker);
-
-  std::complex<double>* imgFD = new std::complex<double>[ph*pw];
-  std::complex<double>* kerFD = new std::complex<double>[ph*pw];
-  
-  dft(ph, pw, img, imgFD);
-  dft(ph, pw, _ker, kerFD);
-
-  delete[] img;
-  delete[] _ker;
-
-  std::complex<double>* resFD = new std::complex<double>[ph*pw];
-  pointwise_mult(ph*pw, imgFD, kerFD, resFD);
-
-  delete[] imgFD;
-  delete[] kerFD;
-
-  std::complex<double>* res = new std::complex<double>[ph*pw];
-  idft(ph, pw, resFD, res);
-
-  delete[] resFD;
-
-  for(uint32_t i=0; i<h; ++i) {
-    for(uint32_t j=0; j<w; ++j) {
-      data[(i*w+j)*channels+channel] = BYTE_BOUND((uint8_t)round(res[i*pw+j].real()));
-    }
-  }
-
-  delete[] res;
-
   return *this;
 }
 
@@ -308,53 +208,6 @@ Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint
   }
   return *this;
 }
-Image& Image::fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
-  //TODO: pad to next power of 2 if less than 1024, otherwise pad to multiple of 512 (how to implement this?)
-  pw = pow(2, ceil(log2(w+ker_w-1)));
-  ph = pow(2, ceil(log2(h+ker_h-1)));
-  psize = pw*ph;
-
-  std::complex<double>* img = new std::complex<double>[ph*pw];
-  for(uint32_t i=0; i<ph; ++i) {
-    for(uint32_t j=0; j<pw; ++j) {
-      uint32_t r = i<h ? i : (i<h+cr ? h-1 : 0);
-      uint32_t c = j<w ? j : (j<w+cc ? w-1 : 0);
-      img[i*pw+j] = std::complex<double>(data[(r*w+c)*channels+channel],0);
-    }
-  }
-  std::complex<double>* _ker = new std::complex<double>[ph*pw];
-  pad_kernel(ker_w, ker_h, ker, cr, cc, _ker);
-
-  std::complex<double>* imgFD = new std::complex<double>[ph*pw];
-  std::complex<double>* kerFD = new std::complex<double>[ph*pw];
-  
-  dft(ph, pw, img, imgFD);
-  dft(ph, pw, _ker, kerFD);
-
-  delete[] img;
-  delete[] _ker;
-
-  std::complex<double>* resFD = new std::complex<double>[ph*pw];
-  pointwise_mult(ph*pw, imgFD, kerFD, resFD);
-
-  delete[] imgFD;
-  delete[] kerFD;
-
-  std::complex<double>* res = new std::complex<double>[ph*pw];
-  idft(ph, pw, resFD, res);
-
-  delete[] resFD;
-
-  for(uint32_t i=0; i<h; ++i) {
-    for(uint32_t j=0; j<w; ++j) {
-      data[(i*w+j)*channels+channel] = BYTE_BOUND((uint8_t)round(res[i*pw+j].real()));
-    }
-  }
-
-  delete[] res;
-
-  return *this;
-}
 
 Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   uint8_t new_data[w*h];
@@ -386,53 +239,6 @@ Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_
   for(uint64_t k=channel; k<size; k+=channels) {
     data[k] = new_data[k/channels];
   }
-  return *this;
-}
-Image& Image::fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
-  //TODO: pad to next power of 2 if less than 1024, otherwise pad to multiple of 512 (how to implement this?)
-  pw = pow(2, ceil(log2(w+ker_w-1)));
-  ph = pow(2, ceil(log2(h+ker_h-1)));
-  psize = pw*ph;
-
-  std::complex<double>* img = new std::complex<double>[ph*pw];
-  for(uint32_t i=0; i<ph; ++i) {
-    for(uint32_t j=0; j<pw; ++j) {
-      uint32_t r = i<h ? i : (i<h+cr ? i%h : i+h-ph);
-      uint32_t c = j<w ? j : (j<w+cc ? j%w : j+w-pw);
-      img[i*pw+j] = std::complex<double>(data[(r*w+c)*channels+channel],0);
-    }
-  }
-  std::complex<double>* _ker = new std::complex<double>[ph*pw];
-  pad_kernel(ker_w, ker_h, ker, cr, cc, _ker);
-
-  std::complex<double>* imgFD = new std::complex<double>[ph*pw];
-  std::complex<double>* kerFD = new std::complex<double>[ph*pw];
-  
-  dft(ph, pw, img, imgFD);
-  dft(ph, pw, _ker, kerFD);
-
-  delete[] img;
-  delete[] _ker;
-
-  std::complex<double>* resFD = new std::complex<double>[ph*pw];
-  pointwise_mult(ph*pw, imgFD, kerFD, resFD);
-
-  delete[] imgFD;
-  delete[] kerFD;
-
-  std::complex<double>* res = new std::complex<double>[ph*pw];
-  idft(ph, pw, resFD, res);
-
-  delete[] resFD;
-
-  for(uint32_t i=0; i<h; ++i) {
-    for(uint32_t j=0; j<w; ++j) {
-      data[(i*w+j)*channels+channel] = BYTE_BOUND((uint8_t)round(res[i*pw+j].real()));
-    }
-  }
-
-  delete[] res;
-
   return *this;
 }
 
