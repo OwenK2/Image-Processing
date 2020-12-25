@@ -4,20 +4,12 @@
 int main(int argc, char** argv) {
 	Image forest("forest.jpg");
 
-	// Image logo("logo.png");
-
-	// forest.overlay(logo, 1920/2 - 275/2, 1280/2 - 275);
-
-	Font fira("FiraCode-Regular.ttf", 150);
-	forest.overlayText("Code Break", fira, 300, 200, 255, 255, 255);
-	fira.setSize(100);
-	forest.overlayText("Adding text to images", fira, 100, 350, 200, 200, 255, 200);
 
 	forest.write("output.png");
 
+	forest.crop(400, 400, 400, 400);
 
-
-
+	forest.write("cropped.png");
 
 
 

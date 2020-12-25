@@ -48,6 +48,8 @@ int main(int argc, char** argv) {
 	test.overlay(logo, 100, 100);
 	// printf("%d %d\n", test.w, test.h);
 	
+	test.write("precrop.png");
+	test.crop(0, 0, 1400, 100);
 
 	test.write("output.png");
 
