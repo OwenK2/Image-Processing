@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
 	
 	//large size image: ker-break even = 14
 
-	Image test("imgs/medium.jpg");
+	Image test("imgs/test.jpg");
 
 	// double ker[] = {-2/9.0, -1/9.0, 0, -1/9.0, 1/9.0, 1/9.0, 0, 1/9.0, 2/9.0}; //emboss
 	// double ker[] = {1/16.0, 2/16.0, 1/16.0, 2/16.0, 4/16.0, 2/16.0, 1/16.0, 2/16.0, 1/16.0}; //gaussian blur
@@ -125,14 +125,14 @@ int main(int argc, char** argv) {
 
 
 
-	// Image diff = cSTD;
-	// diff.diffmap_scale(cFD);
-	// for(uint64_t k=0; k<diff.size; ++k) {
-	// 	if(cSTD.data[k] - cFD.data[k] > 1) { //if difference is less than or equal to 1, we assume rounding error
-	// 		printf("Not matching at index %llu: %d =/= %d\n", k, cSTD.data[k], cFD.data[k]);
-	// 	}
-	// }
-	// diff.write("imgs/con_check.png");
+	Image diff = cSTD;
+	diff.diffmap_scale(cFD);
+	for(uint64_t k=0; k<diff.size; ++k) {
+		if(cSTD.data[k] - cFD.data[k] > 1) { //if difference is less than or equal to 1, we assume rounding error
+			printf("Not matching at index %llu: %d =/= %d\n", k, cSTD.data[k], cFD.data[k]);
+		}
+	}
+	diff.write("imgs/con_check.png");
 
 
 
