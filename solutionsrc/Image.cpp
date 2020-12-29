@@ -82,6 +82,102 @@ ImageType Image::get_file_type(const char* filename) {
 	return PNG;
 }
 
+
+//TODO: go through all these functions and see if optimization is possible
+Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
+  uint8_t new_data[w*h];
+  uint64_t center = cr*ker_w + cc;
+  for(uint64_t k=channel; k<size; k+=channels) {
+    double c = 0;
+
+    for(long i = -((long)cr); i < (long)ker_h-cr; ++i) {
+      long row = ((long)k/channels)/w-i; //-i because kernel is flipped as convolved
+      if((row < 0) || (row > h-1)) {
+        continue;
+      }
+      for(long j = -((long)cc); j < (long)ker_w-cc; ++j) {
+        long col = ((long)k/channels)%w-j; //-j because kernel is flipped as convolved
+        if((col < 0) || (col > w-1)) {
+          continue;
+        }
+        c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
+      }
+    }
+    new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
+  }
+  for(uint64_t k=channel; k<size; k+=channels) {
+    data[k] = new_data[k/channels];
+  }
+  return *this;
+}
+
+Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
+  uint8_t new_data[w*h];
+  uint64_t center = cr*ker_w + cc;
+  for(uint64_t k=channel; k<size; k+=channels) {
+    double c = 0;
+    for(long i = -((long)cr); i < (long)ker_h-cr; ++i) {
+      long row = ((long)k/channels)/w-i; //-i because kernel is flipped as convolved
+      if(row < 0) {
+        row = 0;
+      }
+      else if(row > h-1) {
+        row = h-1;
+      }
+      for(long j = -((long)cc); j < (long)ker_w-cc; ++j) {
+        long col = ((long)k/channels)%w-j; //-j because kernel is flipped as convolved
+        if(col < 0) {
+          col = 0;
+        }
+        else if(col > w-1) {
+          col = w-1;
+        }
+        c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
+      }
+    }
+    new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
+  }
+  for(uint64_t k=channel; k<size; k+=channels) {
+    data[k] = new_data[k/channels];
+  }
+  return *this;
+}
+
+Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
+  uint8_t new_data[w*h];
+  uint64_t center = cr*ker_w + cc;
+  for(uint64_t k=channel; k<size; k+=channels) {
+    double c = 0;
+
+    for(long i = -((long)cr); i < (long)ker_h-cr; ++i) {
+      long row = ((long)k/channels)/w-i; //-i because kernel is flipped as convolved
+      if(row < 0) {
+        row = row%h + h;
+      }
+      else if(row > h-1) {
+        row %= h;
+      }
+      for(long j = -((long)cc); j < (long)ker_w-cc; ++j) {
+        long col = ((long)k/channels)%w-j; //-j because kernel is flipped as convolved
+        if(col < 0) {
+          col = col%w + w;
+        }
+        else if(col > w-1) {
+          col %= w;
+        }
+        c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
+      }
+    }
+    new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
+  }
+  for(uint64_t k=channel; k<size; k+=channels) {
+    data[k] = new_data[k/channels];
+  }
+  return *this;
+}
+
+
+
 uint32_t Image::rev(uint32_t n, uint32_t a) {
   uint8_t max_bits = (uint8_t)log2(n);
   uint32_t reverse_a = 0;
@@ -215,98 +311,23 @@ void Image::pointwise_product(uint64_t l, std::complex<double> a[], std::complex
   }
 }
 
-//TODO: go through all these functions and see if optimization is possible
-Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
-  uint8_t new_data[w*h];
-  uint64_t center = cr*ker_w + cc;
-  for(uint64_t k=channel; k<size; k+=channels) {
-    double c = 0;
-
-    for(long i = -((long)cr); i < (long)ker_h-cr; ++i) {
-      long row = ((long)k/channels)/w-i; //-i because kernel is flipped as convolved
-      if((row < 0) || (row > h-1)) {
-        continue;
-      }
-      for(long j = -((long)cc); j < (long)ker_w-cc; ++j) {
-        long col = ((long)k/channels)%w-j; //-j because kernel is flipped as convolved
-        if((col < 0) || (col > w-1)) {
-          continue;
-        }
-        c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
-      }
+void Image::pad_kernel(uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc, uint32_t pw, uint32_t ph, std::complex<double>* pad_ker) {
+  for(long i=-((long)cr); i<(long)ker_h-cr; ++i) {
+    for(long j=-((long)cc); j<(long)ker_w-cc; ++j) {
+      uint32_t r = i<0 ? i+ph : i;
+      uint32_t c = j<0 ? j+pw : j;
+      pad_ker[r*pw+c] = std::complex<double>(ker[(i+cr)*ker_w+(j+cc)],0);
     }
-    new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
   }
-  for(uint64_t k=channel; k<size; k+=channels) {
-    data[k] = new_data[k/channels];
-  }
-  return *this;
+  return pad_ker;
 }
 
-Image& Image::std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
-  uint8_t new_data[w*h];
-  uint64_t center = cr*ker_w + cc;
-  for(uint64_t k=channel; k<size; k+=channels) {
-    double c = 0;
-    for(long i = -((long)cr); i < (long)ker_h-cr; ++i) {
-      long row = ((long)k/channels)/w-i; //-i because kernel is flipped as convolved
-      if(row < 0) {
-        row = 0;
-      }
-      else if(row > h-1) {
-        row = h-1;
-      }
-      for(long j = -((long)cc); j < (long)ker_w-cc; ++j) {
-        long col = ((long)k/channels)%w-j; //-j because kernel is flipped as convolved
-        if(col < 0) {
-          col = 0;
-        }
-        else if(col > w-1) {
-          col = w-1;
-        }
-        c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
-      }
-    }
-    new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
-  }
-  for(uint64_t k=channel; k<size; k+=channels) {
-    data[k] = new_data[k/channels];
-  }
-  return *this;
+
+Image& fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
+  uint64_t pw = 1<<((uint8_t)log2(w+ker_w-1));
+  uint64_t ph = 1<<((uint8_t)log2(h+ker_h-1));
 }
 
-Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
-  uint8_t new_data[w*h];
-  uint64_t center = cr*ker_w + cc;
-  for(uint64_t k=channel; k<size; k+=channels) {
-    double c = 0;
-
-    for(long i = -((long)cr); i < (long)ker_h-cr; ++i) {
-      long row = ((long)k/channels)/w-i; //-i because kernel is flipped as convolved
-      if(row < 0) {
-        row = row%h + h;
-      }
-      else if(row > h-1) {
-        row %= h;
-      }
-      for(long j = -((long)cc); j < (long)ker_w-cc; ++j) {
-        long col = ((long)k/channels)%w-j; //-j because kernel is flipped as convolved
-        if(col < 0) {
-          col = col%w + w;
-        }
-        else if(col > w-1) {
-          col %= w;
-        }
-        c += ker[center+i*(long)ker_w+j]*data[(row*w+col)*channels+channel];
-      }
-    }
-    new_data[k/channels] = (uint8_t)BYTE_BOUND(round(c));
-  }
-  for(uint64_t k=channel; k<size; k+=channels) {
-    data[k] = new_data[k/channels];
-  }
-  return *this;
-}
 
 
 
