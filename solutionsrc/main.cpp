@@ -3,40 +3,89 @@
 #include <cstdlib>
 #include <chrono>
 
+// void make_random_cmplx_arr(uint32_t len, std::complex<double>* z) {
+// 	for(uint32_t i=0; i<len; ++i) {
+// 		z[i] = std::complex<double>(rand()%100, rand()%100);
+// 	}
+// }
+// void print_cmplx_arr(uint32_t len, std::complex<double> z[]) {
+// 	for(uint32_t i=0; i<len; ++i) {
+// 		printf("%f+%fj,\n", z[i].real(), z[i].imag());
+// 	}
+// 	printf("\n");
+// }
+
 int main(int argc, char** argv) {
-	const uint32_t len = 2048;
-	std::complex<double>* a = new std::complex<double>[len];
-	for(uint32_t i=0; i<len; ++i) {
-		a[i] = std::complex<double>(rand()%100, rand()%100);
-		//printf("%f+%fj, ", a[i].real(), a[i].imag());
+	Image i("imgs/horiz.png");
+	Image o(i.w, i.h);
+	std::complex<double>* o_data = new std::complex<double>[i.w*i.h];
+	std::complex<double>* i_data = new std::complex<double>[o.w*o.h];
+
+	for(uint64_t k=0; k<i.w*i.h; ++k) {
+		i_data[k] = std::complex<double>((double)i.data[k*i.channels], 0.0);
 	}
-	//printf("\n");
-	std::complex<double>* A = new std::complex<double>[len];
-	std::complex<double>* A2 = new std::complex<double>[len];
+	
+	Image::dft_2D(128,128, i_data, o_data);
+	
+	for(uint64_t k=0; k<o.w*o.h; ++k) {
+		o.data[o.channels*k] = (uint8_t)round(o_data[k].real());
+		o.data[o.channels*k+1] = (uint8_t)round(o_data[k].real());
+		o.data[o.channels*k+2] = (uint8_t)round(o_data[k].real());
+	}
+	o.write("imgs/fd.png");
+
+	Image::idft_2D(128,128, o_data, o_data);
+
+	for(uint64_t k=0; k<o.w*o.h; ++k) {
+		o.data[o.channels*k] = (uint8_t)round(o_data[k].real());
+		o.data[o.channels*k+1] = (uint8_t)round(o_data[k].real());
+		o.data[o.channels*k+2] = (uint8_t)round(o_data[k].real());
+	}
+	o.write("imgs/td.png");
 
 
-	auto fft1start = std::chrono::system_clock::now();
-	Image::fft(len, a, A);
-	auto fft1end = std::chrono::system_clock::now();
+
+	delete[] i_data;
+	delete[] o_data;
+
+
+
+
+
+	// const uint32_t len = 4;
+	// std::complex<double>* a = new std::complex<double>[len];
+	// make_random_cmplx_arr(len, a);
+	// print_cmplx_arr(len, a);
+	
+	// std::complex<double>* A = new std::complex<double>[len];
+	// std::complex<double>* a_recovered = new std::complex<double>[len];
+
+	// auto fft1start = std::chrono::system_clock::now();
+	// Image::fft(len, a, A);
+	// auto fft1end = std::chrono::system_clock::now();
+	// // std::complex<double>* A_f = new std::complex<double>[len];
+	// // Image::bit_rev(len, A, A_f);
+	// print_cmplx_arr(len, A);
+	// // print_cmplx_arr(len, A_f);
 
 	// auto ifft1start = std::chrono::system_clock::now();
-	// Image::ifft(len, a, A2);
+	// Image::ifft(len, A, a_recovered);
 	// auto ifft1end = std::chrono::system_clock::now();
+	// print_cmplx_arr(len, a_recovered);
 	
-	
-
-	// for(uint64_t i=0; i<len; ++i) {
-	// 	printf("dft(%f,%f);  idft(%f,%f)\n", A[i].real(), A[i].imag(), A2[i].real(), A2[i].imag());
-	// }
 
 	
-	printf("%lld\n", std::chrono::duration_cast<std::chrono::nanoseconds>(fft1end-fft1start).count());
-	//printf("%lld\n", std::chrono::duration_cast<std::chrono::nanoseconds>(ifft1end-ifft1start).count());
+	// printf("fft took %lldns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(fft1end-fft1start).count());
+	// printf("ifft took %lldns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(ifft1end-ifft1start).count());
 
 
-	delete[] a;
-	delete[] A;
-	delete[] A2;
+	// delete[] a;
+	// delete[] A;
+	// delete[] a_recovered;
+
+
+
+
 
 
 
@@ -79,6 +128,9 @@ int main(int argc, char** argv) {
 
 
 
+
+
+
 	// Image test("test.jpg");
 
 	// test.resize(1280, 662);
@@ -99,6 +151,13 @@ int main(int argc, char** argv) {
 	
 
 	// test.write("output.png");
+
+	
+
+
+
+
+
 
 	return 0;
 }

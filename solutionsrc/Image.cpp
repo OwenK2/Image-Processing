@@ -99,55 +99,121 @@ void Image::bit_rev(uint32_t n, std::complex<double> a[], std::complex<double>* 
 }
 
 void Image::fft(uint32_t n, std::complex<double> x[], std::complex<double>* X) {
-  //bit_rev(n, x, X);
-  memcpy(X, x, n*sizeof(std::complex<double>));
+  //x in standard order
+  if(x != X) {
+    memcpy(X, x, n*sizeof(std::complex<double>));
+  }
 
-  uint8_t log2n = (uint8_t)log2(n);
-  uint32_t m;
-  std::complex<double> w_m;
+  //GS butterfly
+  uint32_t sub_probs = 1;
+  uint32_t sub_prob_size = n;
+  uint32_t half;
+  uint32_t j_begin;
+  uint32_t i;
+  uint32_t j_end;
+  uint32_t j;
+  std::complex<double> w_step;
   std::complex<double> w;
-  std::complex<double> u, t;
-  for(uint8_t s=1; s<=log2n; ++s) {
-    m = (1<<s);
-    w_m = std::complex<double>(cos(-2*M_PI/m), sin(-2*M_PI/m));
-    for(uint32_t k=0; k<n; k+=m) {
+  std::complex<double> tmp1, tmp2;
+  while(sub_prob_size>1) {
+    half = sub_prob_size>>1;
+    w_step = std::complex<double>(cos(-2*M_PI/sub_prob_size), sin(-2*M_PI/sub_prob_size));
+    for(i=0; i<sub_probs; ++i) {
+      j_begin = i*sub_prob_size;
+      j_end = j_begin+half;
       w = std::complex<double>(1,0);
-      for(uint32_t j=0; j<(m>>1); ++j) {
-        t = w*X[k+j+(m>>1)];
-        u = X[k+j];
-        X[k+j] = u+t;
-        X[k+j+(m>>1)] = u-t;
-        w *= w_m;
+      for(j=j_begin; j<j_end; ++j) {
+        tmp1 = X[j];
+        tmp2 = X[j+half];
+        X[j] = tmp1+tmp2;
+        X[j+half] = (tmp1-tmp2)*w;
+        w *= w_step;
       }
     }
+    sub_probs <<= 1;
+    sub_prob_size = half;
   }
+  //X in bit reversed order
 }
 void Image::ifft(uint32_t n, std::complex<double> X[], std::complex<double>* x) {
-  //bit_rev(n, X, x);
-  memcpy(x, X, n*sizeof(std::complex<double>));
+  //X in bit reversed order
+  if(x != X) {
+    memcpy(x, X, n*sizeof(std::complex<double>));
+  }
 
-  uint8_t log2n = (uint8_t)log2(n);
-  uint32_t m;
-  std::complex<double> w_m;
+  //CT butterfly
+  uint32_t sub_probs = n>>1;
+  uint32_t sub_prob_size;
+  uint32_t half = 1;
+  uint32_t j_begin;
+  uint32_t i;
+  uint32_t j_end;
+  uint32_t j;
+  std::complex<double> w_step;
   std::complex<double> w;
-  std::complex<double> u, t;
-  for(uint8_t s=1; s<=log2n; ++s) {
-    m = (1<<s);
-    w_m = std::complex<double>(cos(2*M_PI/m), sin(2*M_PI/m));
-    for(uint32_t k=0; k<n; k+=m) {
+  std::complex<double> tmp1, tmp2;
+  while(half<n) {
+    sub_prob_size = half<<1;
+    w_step = std::complex<double>(cos(2*M_PI/sub_prob_size), sin(2*M_PI/sub_prob_size));
+    for(i=0; i<sub_probs; ++i) {
+      j_begin = i*sub_prob_size;
+      j_end = j_begin+half;
       w = std::complex<double>(1,0);
-      for(uint32_t j=0; j<(m>>1); ++j) {
-        t = w*x[k+j+(m>>1)];
-        u = x[k+j];
-        x[k+j] = u+t;
-        x[k+j+(m>>1)] = u-t;
-        w *= w_m;
+      for(j=j_begin; j<j_end; ++j) {
+        tmp1 = x[j];
+        tmp2 = w*x[j+half];
+        x[j] = tmp1+tmp2;
+        x[j+half] = tmp1-tmp2;
+        w *= w_step;
       }
     }
+    sub_probs >>= 1;
+    half = sub_prob_size;
   }
+  for(uint32_t i=0; i<n; ++i) {
+    x[i] /= n;
+  }
+  //x in standard order
 }
 
+void Image::dft_2D(uint32_t m, uint32_t n, std::complex<double> x[], std::complex<double>* X) {
+  std::complex<double>* intermediate = new std::complex<double>[m*n];
+  for(uint32_t i=0; i<m; ++i) {
+    fft(n, x+i*n, X+i*n);
+    for(uint32_t j=0; j<n; ++j) {
+      intermediate[j*m+i] = X[i*n+j];
+    }
+  }
+  for(uint32_t j=0; j<n; ++j) {
+    fft(m, intermediate+j*m, intermediate+j*m);
+    for(uint32_t i=0; i<m; ++i) {
+      X[i*n+j] = intermediate[j*m+i];
+    }
+  }
+  delete[] intermediate;
+}
+void Image::idft_2D(uint32_t m, uint32_t n, std::complex<double> X[], std::complex<double>* x) {
+  std::complex<double>* intermediate = new std::complex<double>[m*n];
+  for(uint32_t j=0; j<n; ++j) {
+    for(uint32_t i=0; i<m; ++i) {
+      intermediate[j*m+i] = X[i*n+j];
+    }
+    ifft(m, intermediate+j*m, intermediate+j*m);
+  }
+  for(uint32_t i=0; i<m; ++i) {
+    for(uint32_t j=0; j<n; ++j) {
+      X[i*n+j] = intermediate[j*m+i];
+    }
+    ifft(n, X+i*n, x+i*n);
+  }
+  delete[] intermediate;
+}
 
+void Image::pointwise_product(uint64_t l, std::complex<double> a[], std::complex<double> b[], std::complex<double>* p) {
+  for(uint64_t k=0; k<l; ++k) {
+    p[k] = a[k]*b[k];
+  }
+}
 
 //TODO: go through all these functions and see if optimization is possible
 Image& Image::std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
