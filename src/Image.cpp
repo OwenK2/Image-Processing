@@ -459,3 +459,32 @@ Image& Image::overlayText(const char* txt, const Font& font, int x, int y, uint8
 
 
 
+
+
+
+
+
+
+Image& Image::crop(uint16_t cx, uint16_t cy, uint16_t cw, uint16_t ch) {
+	size = cw * ch * channels;
+	uint8_t* croppedImage = new uint8_t[size];
+	memset(croppedImage, 0, size);
+
+	for(uint16_t y = 0;y < ch;++y) {
+		if(y + cy >= h) {break;}
+		for(uint16_t x = 0;x < cw;++x) {
+			if(x + cx >= w) {break;}
+			memcpy(&croppedImage[(x + y * cw) * channels], &data[(x + cx + (y + cy) * w) * channels], channels);
+		}
+	}
+
+	w = cw;
+	h = ch;
+	
+
+	delete[] data;
+	data = croppedImage;
+	croppedImage = nullptr;
+
+	return *this;
+}

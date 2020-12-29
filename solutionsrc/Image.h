@@ -97,6 +97,8 @@ struct Image {
 	Image& resize(uint16_t nw, uint16_t nh);
 	Image& resizeNN(uint16_t nw, uint16_t nh); //nearest neighbor
 
+	Image& crop(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+
 
 
 	void debug();

@@ -851,3 +851,31 @@ Image& Image::resizeNN(uint16_t nw, uint16_t nh) {
 
   return *this;
 }
+
+
+
+Image& Image::crop(uint16_t cx, uint16_t cy, uint16_t cw, uint16_t ch) {
+  uint8_t* newData = new uint8_t[cw*ch*channels];
+  memset(newData, 0, cw*ch*channels);
+
+  uint16_t sx, sy;
+  for(uint16_t dy = 0;dy < ch;++dy) {
+    sy = cy + dy;
+    if(sy >= h) {break;}
+    for(uint16_t dx = 0;dx < cw;++dx) {
+      sx = cx + dx;
+      if(sx >= w) {break;}
+      memcpy(&newData[(dx + cw * dy) * channels], &data[(sx + w * sy) * channels], channels);
+    }
+  }
+
+  w = cw;
+  h = ch;
+  size = w * h * channels;
+
+  delete[] data;
+  data = newData;
+  newData = nullptr;
+
+  return *this;
+}
