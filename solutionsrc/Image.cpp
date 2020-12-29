@@ -179,7 +179,7 @@ Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_
 
 
 uint32_t Image::rev(uint32_t n, uint32_t a) {
-  uint8_t max_bits = (uint8_t)log2(n);
+  uint8_t max_bits = (uint8_t)ceil(log2(n));
   uint32_t reverse_a = 0;
   for(uint8_t i=0; i<max_bits; ++i) {
     if(a & (1<<i)) {
@@ -319,13 +319,38 @@ void Image::pad_kernel(uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr
       pad_ker[r*pw+c] = std::complex<double>(ker[(i+cr)*ker_w+(j+cc)],0);
     }
   }
-  return pad_ker;
 }
 
 
-Image& fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
-  uint64_t pw = 1<<((uint8_t)log2(w+ker_w-1));
-  uint64_t ph = 1<<((uint8_t)log2(h+ker_h-1));
+Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
+  uint32_t pw = 1<<((uint8_t)ceil(log2(w+ker_w-1)));
+  uint32_t ph = 1<<((uint8_t)ceil(log2(h+ker_h-1)));
+  uint64_t psize = ph*pw;
+
+  std::complex<double>* pad_img = new std::complex<double>[psize];
+  for(uint64_t i=0; i<h; ++i) {
+    for(uint64_t j=0; j<w; ++j) {
+      pad_img[i*pw+j] = std::complex<double>(data[(i*w+j)*channels+channel],0);
+    }
+  }
+  std::complex<double>* pad_ker = new std::complex<double>[psize];
+  pad_kernel(ker_w, ker_h, ker, cr, cc, pw, ph, pad_ker);
+
+  dft_2D(ph, pw, pad_img, pad_img);
+  dft_2D(ph, pw, pad_ker, pad_ker);
+  pointwise_product(psize, pad_img, pad_ker, pad_img);
+  idft_2D(ph, pw, pad_img, pad_img);
+
+  for(uint64_t i=0; i<h; ++i) {
+    for(uint64_t j=0; j<w; ++j) {
+      data[(i*w+j)*channels+channel] = BYTE_BOUND(round(pad_img[i*pw+j].real()));
+    }
+  }
+
+  delete[] pad_img;
+  delete[] pad_ker;
+
+  return *this;
 }
 
 

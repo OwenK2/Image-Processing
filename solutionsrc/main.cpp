@@ -16,37 +16,37 @@
 // }
 
 int main(int argc, char** argv) {
-	Image i("imgs/horiz.png");
-	Image o(i.w, i.h);
-	std::complex<double>* o_data = new std::complex<double>[i.w*i.h];
-	std::complex<double>* i_data = new std::complex<double>[o.w*o.h];
+	// Image i("imgs/horiz.png");
+	// Image o(i.w, i.h);
+	// std::complex<double>* o_data = new std::complex<double>[i.w*i.h];
+	// std::complex<double>* i_data = new std::complex<double>[o.w*o.h];
 
-	for(uint64_t k=0; k<i.w*i.h; ++k) {
-		i_data[k] = std::complex<double>((double)i.data[k*i.channels], 0.0);
-	}
+	// for(uint64_t k=0; k<i.w*i.h; ++k) {
+	// 	i_data[k] = std::complex<double>((double)i.data[k*i.channels], 0.0);
+	// }
 	
-	Image::dft_2D(128,128, i_data, o_data);
+	// Image::dft_2D(128,128, i_data, o_data);
 	
-	for(uint64_t k=0; k<o.w*o.h; ++k) {
-		o.data[o.channels*k] = (uint8_t)round(o_data[k].real());
-		o.data[o.channels*k+1] = (uint8_t)round(o_data[k].real());
-		o.data[o.channels*k+2] = (uint8_t)round(o_data[k].real());
-	}
-	o.write("imgs/fd.png");
+	// for(uint64_t k=0; k<o.w*o.h; ++k) {
+	// 	o.data[o.channels*k] = (uint8_t)round(o_data[k].real());
+	// 	o.data[o.channels*k+1] = (uint8_t)round(o_data[k].real());
+	// 	o.data[o.channels*k+2] = (uint8_t)round(o_data[k].real());
+	// }
+	// o.write("imgs/fd.png");
 
-	Image::idft_2D(128,128, o_data, o_data);
+	// Image::idft_2D(128,128, o_data, o_data);
 
-	for(uint64_t k=0; k<o.w*o.h; ++k) {
-		o.data[o.channels*k] = (uint8_t)round(o_data[k].real());
-		o.data[o.channels*k+1] = (uint8_t)round(o_data[k].real());
-		o.data[o.channels*k+2] = (uint8_t)round(o_data[k].real());
-	}
-	o.write("imgs/td.png");
+	// for(uint64_t k=0; k<o.w*o.h; ++k) {
+	// 	o.data[o.channels*k] = (uint8_t)round(o_data[k].real());
+	// 	o.data[o.channels*k+1] = (uint8_t)round(o_data[k].real());
+	// 	o.data[o.channels*k+2] = (uint8_t)round(o_data[k].real());
+	// }
+	// o.write("imgs/td.png");
 
 
 
-	delete[] i_data;
-	delete[] o_data;
+	// delete[] i_data;
+	// delete[] o_data;
 
 
 
@@ -89,28 +89,40 @@ int main(int argc, char** argv) {
 
 
 
+	//smaller size image: ker-break even = 16
+	
+	//large size image: ker-break even = 14
 
+	Image test("imgs/medium.jpg");
 
-	// Image test("imgs/test1.jpg");
-
-	// // double ker[] = {-2/9.0, -1/9.0, 0, -1/9.0, 1/9.0, 1/9.0, 0, 1/9.0, 2/9.0}; //emboss
+	// double ker[] = {-2/9.0, -1/9.0, 0, -1/9.0, 1/9.0, 1/9.0, 0, 1/9.0, 2/9.0}; //emboss
 	// double ker[] = {1/16.0, 2/16.0, 1/16.0, 2/16.0, 4/16.0, 2/16.0, 1/16.0, 2/16.0, 1/16.0}; //gaussian blur
-	
-	// Image cSTD = test;
-	// Image cFD = test;
+	double ker[256]; //box blur
+	for(uint16_t i=0; i<256; ++i) {ker[i]=1.0/256;}
 
-	// printf("starting convolutions...\n");
-	// cSTD.std_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
-	// cSTD.std_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
-	// cSTD.std_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
-	// printf("halfway!\n");
-	// cFD.fd_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
-	// cFD.fd_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
-	// cFD.fd_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
-	// printf("finished convolutions!\n");
+	Image cSTD = test;
+	Image cFD = test;
+
+	printf("starting convolutions...\n");
+	auto fd_conv_start = std::chrono::system_clock::now();
+	cFD.fd_convolve_clamp_to_0(0, 16, 16, ker, 7, 7);
+	cFD.fd_convolve_clamp_to_0(1, 16, 16, ker, 7, 7);
+	cFD.fd_convolve_clamp_to_0(2, 16, 16, ker, 7, 7);
+	auto fd_conv_end = std::chrono::system_clock::now();
+	printf("halfway!\n");
+	auto std_conv_start = std::chrono::system_clock::now();
+	cSTD.std_convolve_clamp_to_0(0, 16, 16, ker, 7, 7);
+	cSTD.std_convolve_clamp_to_0(1, 16, 16, ker, 7, 7);
+	cSTD.std_convolve_clamp_to_0(2, 16, 16, ker, 7, 7);
+	auto std_conv_end = std::chrono::system_clock::now();
+	printf("finished convolutions!\n");
 	
-	// cSTD.write("imgs/std_conv.png");
-	// cFD.write("imgs/fd_conv.png");
+	printf("std took %lldns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(std_conv_end-std_conv_start).count());
+	printf("fd took %lldns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(fd_conv_end-fd_conv_start).count());
+
+	cSTD.write("imgs/std_conv.png");
+	cFD.write("imgs/fd_conv.png");
+
 
 
 	// Image diff = cSTD;
