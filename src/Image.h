@@ -38,14 +38,18 @@ struct Image {
 	ImageType get_file_type(const char* filename);
 
 	
-
 	Image& std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-
 	Image& std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
-
 	Image& std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
 
+	static uint32_t rev(uint32_t n, uint32_t a); //gives bit reversal of a for an log_2(n) bit string
+	static void bit_rev(uint32_t n, std::complex<double> a[], std::complex<double>* A); //puts array in bit reversed order
 	
+	static void fft(uint32_t n, std::complex<double> x[], std::complex<double>* X);
+	static void ifft(uint32_t n, std::complex<double> X[], std::complex<double>* x);
+	static void dft_2D(uint32_t m, uint32_t n, std::complex<double> x[], std::complex<double>* X);
+	static void idft_2D(uint32_t m, uint32_t n, std::complex<double> X[], std::complex<double>* x);
+
 	Image& diffmap(Image& img);
 	Image& diffmap_scale(Image& img, uint8_t scl = 0);
 

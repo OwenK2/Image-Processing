@@ -93,27 +93,27 @@ int main(int argc, char** argv) {
 	
 	//large size image: ker-break even = 14
 
-	Image test("imgs/test.jpg");
+	Image test("imgs/test1.jpg");
 
 	// double ker[] = {-2/9.0, -1/9.0, 0, -1/9.0, 1/9.0, 1/9.0, 0, 1/9.0, 2/9.0}; //emboss
-	// double ker[] = {1/16.0, 2/16.0, 1/16.0, 2/16.0, 4/16.0, 2/16.0, 1/16.0, 2/16.0, 1/16.0}; //gaussian blur
-	double ker[256]; //box blur
-	for(uint16_t i=0; i<256; ++i) {ker[i]=1.0/256;}
+	double ker[] = {1/16.0, 2/16.0, 1/16.0, 2/16.0, 4/16.0, 2/16.0, 1/16.0, 2/16.0, 1/16.0}; //gaussian blur
+	// double ker[256]; //box blur
+	// for(uint16_t i=0; i<256; ++i) {ker[i]=1.0/256;}
 
 	Image cSTD = test;
 	Image cFD = test;
 
 	printf("starting convolutions...\n");
 	auto fd_conv_start = std::chrono::system_clock::now();
-	cFD.fd_convolve_clamp_to_0(0, 16, 16, ker, 7, 7);
-	cFD.fd_convolve_clamp_to_0(1, 16, 16, ker, 7, 7);
-	cFD.fd_convolve_clamp_to_0(2, 16, 16, ker, 7, 7);
+	cFD.fd_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
+	cFD.fd_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
+	cFD.fd_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
 	auto fd_conv_end = std::chrono::system_clock::now();
 	printf("halfway!\n");
 	auto std_conv_start = std::chrono::system_clock::now();
-	cSTD.std_convolve_clamp_to_0(0, 16, 16, ker, 7, 7);
-	cSTD.std_convolve_clamp_to_0(1, 16, 16, ker, 7, 7);
-	cSTD.std_convolve_clamp_to_0(2, 16, 16, ker, 7, 7);
+	cSTD.std_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
+	cSTD.std_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
+	cSTD.std_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
 	auto std_conv_end = std::chrono::system_clock::now();
 	printf("finished convolutions!\n");
 	
@@ -161,8 +161,8 @@ int main(int argc, char** argv) {
 	// test.overlay(logo, 100, 100);
 	// printf("%d %d\n", test.w, test.h);
 	
-	test.write("precrop.png");
-	test.crop(0, 0, 1400, 100);
+	// test.write("precrop.png");
+	// test.crop(0, 0, 1400, 100);
 
 	// test.write("output.png");
 

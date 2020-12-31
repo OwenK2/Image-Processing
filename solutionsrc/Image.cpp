@@ -275,35 +275,32 @@ void Image::ifft(uint32_t n, std::complex<double> X[], std::complex<double>* x) 
 void Image::dft_2D(uint32_t m, uint32_t n, std::complex<double> x[], std::complex<double>* X) {
   std::complex<double>* intermediate = new std::complex<double>[m*n];
   for(uint32_t i=0; i<m; ++i) {
-    fft(n, x+i*n, X+i*n);
-    for(uint32_t j=0; j<n; ++j) {
-      intermediate[j*m+i] = X[i*n+j];
-    }
+    fft(n, x+i*n, intermediate+i*n);
   }
   for(uint32_t j=0; j<n; ++j) {
-    fft(m, intermediate+j*m, intermediate+j*m);
     for(uint32_t i=0; i<m; ++i) {
-      X[i*n+j] = intermediate[j*m+i];
+      X[j*m+i] = intermediate[i*n+j];
     }
+    fft(m, X+j*m, X+j*m);
   }
   delete[] intermediate;
+  //X is column-major and bit reversed in rows then cols
 }
 void Image::idft_2D(uint32_t m, uint32_t n, std::complex<double> X[], std::complex<double>* x) {
+  //X is column-major and bit reversed in rows then cols
   std::complex<double>* intermediate = new std::complex<double>[m*n];
   for(uint32_t j=0; j<n; ++j) {
-    for(uint32_t i=0; i<m; ++i) {
-      intermediate[j*m+i] = X[i*n+j];
-    }
-    ifft(m, intermediate+j*m, intermediate+j*m);
+    ifft(m, X+j*m, intermediate+j*m);
   }
   for(uint32_t i=0; i<m; ++i) {
     for(uint32_t j=0; j<n; ++j) {
-      X[i*n+j] = intermediate[j*m+i];
+      x[i*n+j] = intermediate[j*m+i];
     }
-    ifft(n, X+i*n, x+i*n);
+    ifft(n, x+i*n, x+i*n);
   }
   delete[] intermediate;
 }
+
 
 void Image::pointwise_product(uint64_t l, std::complex<double> a[], std::complex<double> b[], std::complex<double>* p) {
   for(uint64_t k=0; k<l; ++k) {
@@ -343,7 +340,7 @@ Image& Image::fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t k
 
   for(uint64_t i=0; i<h; ++i) {
     for(uint64_t j=0; j<w; ++j) {
-      data[(i*w+j)*channels+channel] = BYTE_BOUND(round(pad_img[i*pw+j].real()));
+      data[(i*w+j)*channels+channel] = (uint8_t)BYTE_BOUND(round(pad_img[i*pw+j].real()));
     }
   }
 
@@ -422,26 +419,26 @@ Image& Image::fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h
 
 Image& Image::convolve_linear(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   if(ker_w*ker_h > 224) {
-    fd_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+    return fd_convolve_clamp_to_0(channel, ker_w, ker_h, ker, cr, cc);
   }
   else {
-    std_convolve_clamp_to_0(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+    return std_convolve_clamp_to_0(channel, ker_w, ker_h, ker, cr, cc);
   }
 }
 Image& Image::convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   if(ker_w*ker_h > 224) {
-    fd_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+    return fd_convolve_clamp_to_border(channel, ker_w, ker_h, ker, cr, cc);
   }
   else {
-    std_convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+    return std_convolve_clamp_to_border(channel, ker_w, ker_h, ker, cr, cc);
   }
 }
 Image& Image::convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc) {
   if(ker_w*ker_h > 224) {
-    fd_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+    return fd_convolve_cyclic(channel, ker_w, ker_h, ker, cr, cc);
   }
   else {
-    std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
+    return std_convolve_cyclic(channel, ker_w, ker_h, ker, cr, cc);
   }
 }
 

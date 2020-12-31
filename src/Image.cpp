@@ -183,6 +183,108 @@ Image& Image::std_convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_
 }
 
 
+uint32_t Image::rev(uint32_t n, uint32_t a) {
+	uint8_t max_bits = (uint8_t)ceil(log2(n));
+	uint32_t reversed_a = 0;
+	for(uint8_t i=0; i<max_bits; ++i) {
+		if(a & (1<<i)) {
+			reversed_a |= (1<<(max_bits-1-i));
+		}
+	}
+	return reversed_a;
+}
+void Image::bit_rev(uint32_t n, std::complex<double> a[], std::complex<double>* A) {
+	for(uint32_t i=0; i<n; ++i) {
+		A[rev(n, i)] = a[i];
+	}
+}
+	
+void Image::fft(uint32_t n, std::complex<double> x[], std::complex<double>* X) {
+	if(x != X) {
+		memcpy(X, x, n*sizeof(std::complex<double>));
+	}
+
+	//GS butterfly
+	uint32_t sub_problems = 1;
+	uint32_t sub_problem_size = n;
+	uint32_t half;
+	uint32_t j_begin;
+	uint32_t i;
+	uint32_t j_end;
+	uint32_t j;
+	std::complex<double> w_step;
+	std::complex<double> w;
+	std::complex<double> temp1, temp2;
+	while(sub_problem_size > 1) {
+		half = sub_problem_size>>1;
+		w_step = std::complex<double>(cos(-2*M_PI/sub_problem_size),sin(-2*M_PI/sub_problem_size));
+		for(i=0; i<sub_problems; ++i) {
+			j_begin = i*sub_problem_size;
+			j_end = j_begin+half;
+			w = std::complex<double>(1,0);
+			for(j=j_begin; j<j_end; ++j) {
+				temp1 = X[j];
+				temp2 = X[j+half];
+				X[j] = temp1+temp2;
+				X[j+half] = (temp1-temp2)*w;
+				w *= w_step;
+			}
+		}
+		sub_problems <<= 1;
+		sub_problem_size = half;
+	}
+	//X in bit reversed order
+}
+void Image::ifft(uint32_t n, std::complex<double> X[], std::complex<double>* x) {
+	//X in bit reversed order
+	if(x != X) {
+		memcpy(x, X, n*sizeof(std::complex<double>));
+	}
+
+	//CT butterfly
+	uint32_t sub_problems = n>>2;
+	uint32_t sub_problem_size;
+	uint32_t half = 1;
+	uint32_t j_begin;
+	uint32_t i;
+	uint32_t j_end;
+	uint32_t j;
+	std::complex<double> w_step;
+	std::complex<double> w;
+	std::complex<double> temp1, temp2;
+	while(half<n) {
+		sub_problem_size = half<<1;
+		w_step = std::complex<double>(cos(2*M_PI/sub_problem_size),sin(2*M_PI/sub_problem_size));
+		for(i=0; i<sub_problems; ++i) {
+			j_begin = i*sub_problem_size;
+			j_end = j_begin+half;
+			w = std::complex<double>(1,0);
+			for(j=j_begin; j<j_end; ++j) {
+				temp1 = X[j];
+				temp2 = w*X[j+half];
+				X[j] = temp1+temp2;
+				X[j+half] = temp1-temp2;
+				w *= w_step;
+			}
+		}
+		sub_problems >>= 1;
+		half = sub_problem_size;
+	}
+	for(uint32_t i=0; i<n; ++i) {
+		x[i] /= n;
+	}
+}
+void Image::dft_2D(uint32_t m, uint32_t n, std::complex<double> x[], std::complex<double>* X) {
+	
+}
+void Image::idft_2D(uint32_t m, uint32_t n, std::complex<double> X[], std::complex<double>* x) {
+	
+}
+
+
+
+
+
 
 
 Image& Image::diffmap(Image& img) {
