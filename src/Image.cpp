@@ -590,3 +590,40 @@ Image& Image::crop(uint16_t cx, uint16_t cy, uint16_t cw, uint16_t ch) {
 
 	return *this;
 }
+
+
+
+
+
+
+
+
+
+
+Image& Image::resizeNN(uint16_t nw, uint16_t nh) {
+	size = nw * nh * channels;
+	uint8_t* newImage = new uint8_t[size];
+
+	float scaleX = (float)nw / (w);
+	float scaleY = (float)nh / (h);
+	uint16_t sx, sy;
+
+	for(uint16_t y = 0;y < nh;++y) {
+		sy = (uint16_t)(y / scaleY);
+		for(uint16_t x = 0;x < nw;++x) {
+			sx = (uint16_t)(x / scaleX);
+
+			memcpy(&newImage[(x + y * nw) * channels], &data[(sx + sy * w) * channels], channels);
+
+		}
+	}
+
+
+	w = nw;
+	h = nh;
+	delete[] data;
+	data = newImage;
+	newImage = nullptr;
+
+	return *this;
+}

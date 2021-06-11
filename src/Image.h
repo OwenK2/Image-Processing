@@ -74,6 +74,10 @@ struct Image {
 	Image& crop(uint16_t cx, uint16_t cy, uint16_t cw, uint16_t ch);
 
 
+
+	Image& resizeNN(uint16_t nw, uint16_t nh);
+
+
 };
 
 

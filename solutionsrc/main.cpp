@@ -93,46 +93,46 @@ int main(int argc, char** argv) {
 	
 	//large size image: ker-break even = 14
 
-	Image test("imgs/test1.jpg");
+	// Image test("imgs/test1.jpg");
 
-	// double ker[] = {-2/9.0, -1/9.0, 0, -1/9.0, 1/9.0, 1/9.0, 0, 1/9.0, 2/9.0}; //emboss
-	double ker[] = {1/16.0, 2/16.0, 1/16.0, 2/16.0, 4/16.0, 2/16.0, 1/16.0, 2/16.0, 1/16.0}; //gaussian blur
-	// double ker[256]; //box blur
-	// for(uint16_t i=0; i<256; ++i) {ker[i]=1.0/256;}
+	// // double ker[] = {-2/9.0, -1/9.0, 0, -1/9.0, 1/9.0, 1/9.0, 0, 1/9.0, 2/9.0}; //emboss
+	// double ker[] = {1/16.0, 2/16.0, 1/16.0, 2/16.0, 4/16.0, 2/16.0, 1/16.0, 2/16.0, 1/16.0}; //gaussian blur
+	// // double ker[256]; //box blur
+	// // for(uint16_t i=0; i<256; ++i) {ker[i]=1.0/256;}
 
-	Image cSTD = test;
-	Image cFD = test;
+	// Image cSTD = test;
+	// Image cFD = test;
 
-	printf("starting convolutions...\n");
-	auto fd_conv_start = std::chrono::system_clock::now();
-	cFD.fd_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
-	cFD.fd_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
-	cFD.fd_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
-	auto fd_conv_end = std::chrono::system_clock::now();
-	printf("halfway!\n");
-	auto std_conv_start = std::chrono::system_clock::now();
-	cSTD.std_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
-	cSTD.std_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
-	cSTD.std_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
-	auto std_conv_end = std::chrono::system_clock::now();
-	printf("finished convolutions!\n");
+	// printf("starting convolutions...\n");
+	// auto fd_conv_start = std::chrono::system_clock::now();
+	// cFD.fd_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
+	// cFD.fd_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
+	// cFD.fd_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
+	// auto fd_conv_end = std::chrono::system_clock::now();
+	// printf("halfway!\n");
+	// auto std_conv_start = std::chrono::system_clock::now();
+	// cSTD.std_convolve_clamp_to_0(0, 3, 3, ker, 1, 1);
+	// cSTD.std_convolve_clamp_to_0(1, 3, 3, ker, 1, 1);
+	// cSTD.std_convolve_clamp_to_0(2, 3, 3, ker, 1, 1);
+	// auto std_conv_end = std::chrono::system_clock::now();
+	// printf("finished convolutions!\n");
 	
-	printf("std took %lldns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(std_conv_end-std_conv_start).count());
-	printf("fd took %lldns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(fd_conv_end-fd_conv_start).count());
+	// printf("std took %lldns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(std_conv_end-std_conv_start).count());
+	// printf("fd took %lldns\n", std::chrono::duration_cast<std::chrono::nanoseconds>(fd_conv_end-fd_conv_start).count());
 
-	cSTD.write("imgs/std_conv.png");
-	cFD.write("imgs/fd_conv.png");
+	// cSTD.write("imgs/std_conv.png");
+	// cFD.write("imgs/fd_conv.png");
 
 
 
-	Image diff = cSTD;
-	diff.diffmap_scale(cFD);
-	for(uint64_t k=0; k<diff.size; ++k) {
-		if(cSTD.data[k] - cFD.data[k] > 1) { //if difference is less than or equal to 1, we assume rounding error
-			printf("Not matching at index %llu: %d =/= %d\n", k, cSTD.data[k], cFD.data[k]);
-		}
-	}
-	diff.write("imgs/con_check.png");
+	// Image diff = cSTD;
+	// diff.diffmap_scale(cFD);
+	// for(uint64_t k=0; k<diff.size; ++k) {
+	// 	if(cSTD.data[k] - cFD.data[k] > 1) { //if difference is less than or equal to 1, we assume rounding error
+	// 		printf("Not matching at index %llu: %d =/= %d\n", k, cSTD.data[k], cFD.data[k]);
+	// 	}
+	// }
+	// diff.write("imgs/con_check.png");
 
 
 
@@ -168,6 +168,11 @@ int main(int argc, char** argv) {
 
 	
 
+	Image c("char.png");
+
+	c.resizeNN(100, 100);
+
+	c.write("output.png");
 
 
 

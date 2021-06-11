@@ -14,10 +14,23 @@
 // }
 
 int main(int argc, char** argv) {
-	Image test("imgs/test1.jpg");
 
 
-	
+
+
+
+	Image character("char.png");
+	Image sky("aurora.jpg");
+
+	sky.resizeNN(1000, 1000);
+	character.resizeNN(1000, 1000);
+
+
+	sky.write("outputsky.png");
+	character.write("outputchar.png");
+
+
+
 
 
 	return 0;
