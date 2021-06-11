@@ -555,16 +555,16 @@ Image& Image::inverse() {
 }
 
 
-Image& Image::colorMask(float mask) {
-  return colorMask(mask, mask, mask);
+Image& Image::color_mask(float mask) {
+  return color_mask(mask, mask, mask);
 }
-Image& Image::colorMask(uint8_t mask) {
-  return colorMask(mask, mask, mask);
+Image& Image::color_mask(uint8_t mask) {
+  return color_mask(mask, mask, mask);
 }
-Image& Image::colorMask(uint8_t r, uint8_t g, uint8_t b) {
-  return colorMask(r/255.0f, g/255.0f, b/255.0f);
+Image& Image::color_mask(uint8_t r, uint8_t g, uint8_t b) {
+  return color_mask(r/255.0f, g/255.0f, b/255.0f);
 }
-Image& Image::colorMask(float r, float g, float b) {
+Image& Image::color_mask(float r, float g, float b) {
   if(channels < 3) {
     printf("\e[31m[ERROR] Color Mask requires at least 3 color channels (this image has %d)\e[0m\n", channels);
   }
@@ -584,7 +584,7 @@ Image& Image::colorMask(float r, float g, float b) {
 
 
 
-Image& Image::encodeMessage(const char* message) {
+Image& Image::encode_message(const char* message) {
   uint32_t len = strlen(message) * 8;
   if(len + STEG_HEADER_SIZE > size) {
     printf("\e[31m[ERROR] This message is too large (%lu bits / %zu bits)\e[0m\n", len+STEG_HEADER_SIZE, size);
@@ -604,7 +604,7 @@ Image& Image::encodeMessage(const char* message) {
   return *this;
 }
 
-Image& Image::decodeMessage(char* buffer, size_t* messageLength) {
+Image& Image::decode_message(char* buffer, size_t* messageLength) {
   uint32_t len = 0;
   for(uint8_t i = 0;i < STEG_HEADER_SIZE;++i) {
     len = (len << 1) | (data[i] & 1);
