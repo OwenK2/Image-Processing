@@ -7,7 +7,6 @@
 int main(int argc, char** argv) {
 
 	Image test("imgs/stone.png", 4);
-
 	for(uint32_t i=1; i<test.h-1; ++i) {
 		for(uint32_t j=1; j<test.w-1; ++j) {
 			test.data[(i*test.w+j)*test.channels] = 0;
