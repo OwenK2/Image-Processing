@@ -253,10 +253,6 @@ int main(int argc, char** argv) {
 
 
 
-
-
-	/*
-
 	//smaller size image: ker-break even = 16
 	
 	//large size image: ker-break even = 14
