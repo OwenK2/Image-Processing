@@ -63,6 +63,8 @@ struct Image {
 	Image& convolve_clamp_to_border(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
 	Image& convolve_cyclic(uint8_t channel, uint32_t ker_w, uint32_t ker_h, double ker[], uint32_t cr, uint32_t cc);
 
+	//https://en.wikipedia.org/wiki/Gaussian_blur#Mathematics
+	//Image& gaussian_blur(uint8_t channel, double sigma);
 
 	Image& diffmap(Image& img);
 	Image& diffmap_scale(Image& img, uint8_t scl = 0);
@@ -74,13 +76,13 @@ struct Image {
 
 	Image& inverse();
 
-	Image& colorMask(uint8_t mask);
-	Image& colorMask(uint8_t r, uint8_t g, uint8_t b);
-	Image& colorMask(float mask);
-	Image& colorMask(float r, float g, float b);
+	Image& color_mask(uint8_t mask);
+	Image& color_mask(uint8_t r, uint8_t g, uint8_t b);
+	Image& color_mask(float mask);
+	Image& color_mask(float r, float g, float b);
 
-	Image& encodeMessage(const char* message);
-	Image& decodeMessage(char* buffer, size_t* messageLength);
+	Image& encode_message(const char* message);
+	Image& decode_message(char* buffer, size_t* messageLength);
 
 	Image& tempAdjust(short value);
 	Image& grainAdjust(uint8_t value);
