@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 	res.convolve_linear(0, 3, 3, gauss, 1, 1);
 	
 	
-	//sobel (TODO: put this into image struct)
+	//scharr (variant of sobel) (TODO: put this into image struct)
 	double* tempx = new double[res.size];
 	double* tempy = new double[res.size];
 	double* gx = new double[res.size];
@@ -46,28 +46,28 @@ int main(int argc, char** argv) {
 	for(uint32_t c=1; c<res.w-1; ++c) {//changed these to not include endpoints
 		for(uint32_t r=0; r<res.h; ++r) {
 			tempx[r*res.w+c] = 0;
-			tempy[r*res.w+c] = 2*res.data[r*res.w+c];
+			tempy[r*res.w+c] = 162*res.data[r*res.w+c];
 			//if(c!=0) {
 				tempx[r*res.w+c] -= res.data[r*res.w+c-1];
-				tempy[r*res.w+c] += res.data[r*res.w+c-1];
+				tempy[r*res.w+c] += 47*res.data[r*res.w+c-1];
 			//}
 			//if(c!=res.w-1) {
 				tempx[r*res.w+c] += res.data[r*res.w+c+1];
-				tempy[r*res.w+c] += res.data[r*res.w+c+1];
+				tempy[r*res.w+c] += 47*res.data[r*res.w+c+1];
 			//}
 		}
 	}
 
 	for(uint32_t r=1; r<res.h-1; ++r) {//changed these to not include endpoints
 		for(uint32_t c=1; c<res.w-1; ++c) {//dont include endpoints here because everything is 0 anyway
-			gx[r*res.w+c] = 2*tempx[r*res.w+c];
+			gx[r*res.w+c] = 162*tempx[r*res.w+c];
 			gy[r*res.w+c] = 0;
 			//if(r!=0) {
-				gx[r*res.w+c] += tempx[(r-1)*res.w+c];
+				gx[r*res.w+c] += 47*tempx[(r-1)*res.w+c];
 				gy[r*res.w+c] -= tempy[(r-1)*res.w+c];
 			//}
 			//if(r!=res.h-1) {
-				gx[r*res.w+c] += tempx[(r+1)*res.w+c];
+				gx[r*res.w+c] += 47*tempx[(r+1)*res.w+c];
 				gy[r*res.w+c] += tempy[(r+1)*res.w+c];
 			//}
 		}
@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
 	Gx.write("imgs/Gx.png");
 	Gy.write("imgs/Gy.png");
 
-	double threshold = 0.1;
+	double threshold = 0.09;
 	double* g = new double[res.size];
 	double* theta = new double[res.size];
 	for(uint64_t k=0; k<res.size; ++k) {
