@@ -431,7 +431,7 @@ map_file(SFT_Font *font, const char *filename)
 		return -1;
 	}
 
-	font->size = (size_t)high << (8 * sizeof(DWORD)) | low;
+	font->size = (uint64_t)high << (8 * sizeof(DWORD)) | low;
 
 	font->mapping = CreateFileMapping(file, NULL, PAGE_READONLY, high, low, NULL);
 	if (font->mapping == NULL) {
@@ -441,7 +441,7 @@ map_file(SFT_Font *font, const char *filename)
 
 	CloseHandle(file);
 
-	font->memory = MapViewOfFile(font->mapping, FILE_MAP_READ, 0, 0, 0);
+	font->memory = (const uint8_t*)MapViewOfFile(font->mapping, FILE_MAP_READ, 0, 0, 0);
 	if (font->memory == NULL) {
 		CloseHandle(font->mapping);
 		font->mapping = NULL;

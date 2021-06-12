@@ -3,11 +3,18 @@
 #include <cstring>
 #include <cstdio>
 #include <complex>
+#include <algorithm>
+
+//legacy feature of C
+#undef __STRICT_ANSI__
+#define _USE_MATH_DEFINES 
 #include <cmath>
+#ifndef M_PI
+	#define M_PI (3.14159265358979323846)
+#endif
 
 #include "schrift.h"
 
-#define _USE_MATH_DEFINES //legacy feature of C
 
 #define STEG_HEADER_SIZE sizeof(uint32_t) * 8
 
